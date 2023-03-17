@@ -1,0 +1,13 @@
+[package]
+name = "Motif-Finder"
+version = "0.1.0"
+edition = "2021"
+authors = ["Nithish Narasimman <me@nithishbn.com>"]
+description = "This takes a genome and iteratively runs a rendition of Gibbs Sampler to identify potential embedded motifs"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = "0.4.24"
+clap = { version = "4.1.8", features = ["derive"] }
+rand = "0.8.5"
+rayon = "1.7.0"
