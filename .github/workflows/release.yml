@@ -1,7 +1,10 @@
 name: Rust
 
 on: [push]
-
+permissions:
+  contents: 'read'
+  id-token: 'write'
+  issues: 'write'
 jobs:
   build:
     runs-on: ubuntu-latest
