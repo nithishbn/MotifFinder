@@ -38,6 +38,7 @@ struct GlobalOpts {
 
 #[derive(Subcommand)]
 enum Commands {
+    #[clap(name="gibbs", about = "Run the Gibbs Sampler algorithm")]
     GibbsSampler {
         /// number of runs
         #[arg(short = 'r', long = "runs")]
@@ -48,8 +49,10 @@ enum Commands {
         num_iterations: usize,
     },
 
+    #[clap(name="median", about = "Run the Median String algorithm (Warning: this can take a long time to run for large values of k))")]
     MedianString,
 
+    #[clap(name="randomized", about = "Run the Randomized Motif Search algorithm")]
     Randomized {
         /// number of runs
         #[arg(short = 'r', long = "runs")]
@@ -89,13 +92,10 @@ fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, &str
     let mut current = 1;
     println!("Loading data...");
     if let Ok(lines) = read_lines(path_to_file) {
-        // Consumes the iterator, returns an (Optional) String
         for line in lines {
             if let Ok(line) = line {
                 if line.starts_with(">") {
                     if chromosome.chars().count() > 0 {
-                        // dbg!("hi");
-                        // dbg!(line);
                         if chromosome.chars().count() == 0 {
                             continue;
                         }

@@ -189,8 +189,4 @@ pub fn iterate_gibbs_sampler(dna: &[String], k: usize, t: usize, iterations: usi
 
     motifs
 }
-// pub fn main(){
-//     let path = "tests/MotifEnumeration/dataset_865379_8.txt".to_string();
-//     let (k,d,dna) = motif_enum_load_file(path);
-//
-// }
+
