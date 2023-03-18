@@ -1,7 +1,8 @@
 name: Rust
 
 on: [push]
-
+env:
+  PROJECT_NAME: motif_finder
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -18,14 +19,14 @@ jobs:
           override: true
 
       - name: Build
-        run: cargo build --all --release && strip target/release/PROJECT_NAME && mv target/release/PROJECT_NAME target/release/PROJECT_NAME_amd64
+        run: cargo build --all --release && strip target/release/${{PROJECT_NAME}} && mv target/release/${{PROJECT_NAME}} target/release/${{PROJECT_NAME}}_amd64
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            target/release/PROJECT_NAME_amd64
+            target/release/${{PROJECT_NAME}}_amd64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -50,7 +51,7 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: target/release/PROJECT_NAME.exe
+          files: target/release/${{PROJECT_NAME}}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -70,13 +71,13 @@ jobs:
           override: true
 
       - name: Build for mac
-        run: cargo build --all --release && strip target/release/PROJECT_NAME && mv target/release/PROJECT_NAME target/release/PROJECT_NAME_darwin
+        run: cargo build --all --release && strip target/release/${{PROJECT_NAME}} && mv target/release/PROJECT_NAME target/release/${{PROJECT_NAME}}_darwin
 
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            target/release/PROJECT_NAME_darwin
+            target/release/${{PROJECT_NAME}}_darwin
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
