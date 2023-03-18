@@ -5,8 +5,8 @@ use std::path::Path;
 use chrono::{DateTime, Utc};
 use clap::{Args, Parser, Subcommand};
 use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
+use motif_finder::median_string::median_string;
 use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
-use motif_finder::{median_string::median_string};
 
 /// Motif Finder
 #[derive(Parser)]

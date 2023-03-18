@@ -1,6 +1,6 @@
 use rand::{thread_rng, Rng};
 
-use crate::{scoring_function, generate_profile_given_motif_matrix, generate_probability};
+use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
 /*
 I used "better scoring function" which is based on entropy, but I included the integer,
 sum-based scoring function as well for reference
@@ -58,12 +58,12 @@ pub fn generate_motifs_from_profile(
     }
     motifs
 }
-pub fn iterate_randomized_motif_search(dna: &[String], k: usize, runs:usize) -> Vec<String> {
+pub fn iterate_randomized_motif_search(dna: &[String], k: usize, runs: usize) -> Vec<String> {
     println!("Starting randomized motif search with {} runs", runs);
     let mut motifs = randomized_motif_search(dna, k);
     let mut best_score = scoring_function(&motifs);
     for _i in 0..runs {
-        println!("Run: {}", _i+1);
+        println!("Run: {}", _i + 1);
         let check = randomized_motif_search(dna, k);
         let check_score = scoring_function(&check);
         if check_score < best_score {
