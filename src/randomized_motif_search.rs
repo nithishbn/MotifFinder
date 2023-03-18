@@ -1,6 +1,6 @@
 use rand::{thread_rng, Rng};
-use crate::{generate_profile_given_motif_matrix, scoring_function, generate_probability};
 
+use crate::{scoring_function, generate_profile_given_motif_matrix, generate_probability};
 /*
 I used "better scoring function" which is based on entropy, but I included the integer,
 sum-based scoring function as well for reference
@@ -71,6 +71,6 @@ pub fn iterate_randomized_motif_search(dna: &[String], k: usize, runs:usize) -> 
             best_score = check_score;
         }
     }
-    
+
     motifs
 }

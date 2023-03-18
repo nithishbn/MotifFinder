@@ -4,8 +4,9 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use clap::{Args, Parser, Subcommand};
+use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
 use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
-use motif_finder::{iterate_gibbs_sampler, median_string::median_string};
+use motif_finder::{median_string::median_string};
 
 /// Motif Finder
 #[derive(Parser)]
@@ -38,7 +39,7 @@ struct GlobalOpts {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[clap(name="gibbs", about = "Run the Gibbs Sampler algorithm")]
+    #[clap(name = "gibbs", about = "Run the Gibbs Sampler algorithm")]
     GibbsSampler {
         /// number of runs
         #[arg(short = 'r', long = "runs")]
@@ -49,10 +50,16 @@ enum Commands {
         num_iterations: usize,
     },
 
-    #[clap(name="median", about = "Run the Median String algorithm (Warning: this can take a long time to run for large values of k))")]
+    #[clap(
+        name = "median",
+        about = "Run the Median String algorithm (Warning: this can take a long time to run for large values of k))"
+    )]
     MedianString,
 
-    #[clap(name="randomized", about = "Run the Randomized Motif Search algorithm")]
+    #[clap(
+        name = "randomized",
+        about = "Run the Randomized Motif Search algorithm"
+    )]
     Randomized {
         /// number of runs
         #[arg(short = 'r', long = "runs")]
