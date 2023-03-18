@@ -1,1 +1,1 @@
-# SeniorDesign
+# Motif Finder

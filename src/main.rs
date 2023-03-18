@@ -244,6 +244,7 @@ fn run_randomized_motif_search(args_cli: &Cli) -> Result<(), Error> {
                 Err(_err) => return Err(Error::IOError),
             }
         }
+        println!("Saved to file: {}", save_path);
     }
     for motif in motifs {
         println!("{}", motif);
