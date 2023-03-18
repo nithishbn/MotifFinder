@@ -70,7 +70,7 @@ jobs:
           override: true
 
       - name: Build for mac
-        run: cargo build --all --release && strip target/release/${{vars.PROJECT_NAME}} && mv target/release/PROJECT_NAME target/release/${{vars.PROJECT_NAME}}_darwin
+        run: cargo build --all --release && strip target/release/${{vars.PROJECT_NAME}} && mv target/release/${{vars.PROJECT_NAME}} target/release/${{vars.PROJECT_NAME}}_darwin
 
       - name: Release
         uses: softprops/action-gh-release@v1
