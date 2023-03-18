@@ -1,9 +1,9 @@
 [package]
-name = "Motif-Finder"
+name = "motif_finder"
 version = "0.1.0"
 edition = "2021"
 authors = ["Nithish Narasimman <me@nithishbn.com>"]
-description = "This takes a genome and iteratively runs a rendition of Gibbs Sampler to identify potential embedded motifs"
+description = "Find motifs using Gibbs Sampler, Median String, and Randomized Motif Search algorithms in a fasta formatted file of reads"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

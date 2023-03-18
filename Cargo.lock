@@ -3,16 +3,6 @@
 version = 3
 
 [[package]]
-name = "Motif-Finder"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "rand",
- "rayon",
-]
-
-[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -357,6 +347,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d61c719bcfbcf5d62b3a09efa6088de8c54bc0bfcd3ea7ae39fcc186108b8de1"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "motif_finder"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "rand",
+ "rayon",
 ]
 
 [[package]]

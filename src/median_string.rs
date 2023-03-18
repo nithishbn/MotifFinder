@@ -1,7 +1,6 @@
 use std::{collections::HashSet};
-use chrono::Utc;
 use rayon::prelude::*;
-use std::{fs, io::Write};
+
 
 
 pub fn hamming_distance(string1: &str, string2: &String) -> usize {
@@ -53,24 +52,24 @@ pub fn neighbors(pattern: String, d: usize) -> HashSet<String> {
     }
     neighborhood
 }
-pub fn median_string(k: usize, dna: &Vec<String>,timestamp:i64) -> String {
+pub fn median_string(k: usize, dna: &Vec<String>) -> String {
     let mut distance = usize::MAX;
     let dummy_string = "A".repeat(k);
     let patterns = neighbors(dummy_string, k);
     let mut median = String::from("");
     let len = patterns.len();
-    let mut file = fs::File::create(format!("median-string-{timestamp}-{k}-checkpoint.txt")).expect("Unable to create file");
+    // let mut file = fs::File::create(format!("median-string-{timestamp}-{k}-checkpoint.txt")).expect("Unable to create file");
     for (i,pattern) in patterns.iter().enumerate() {
-        println!("processing pattern {i} of {len} in median_string",i=i+1,len=patterns.len());
+        println!("processing pattern {i} of {len} in median_string",i=i+1);
         let pattern_distance = distance_between_pattern_and_strings(&pattern, &dna);
         if distance > pattern_distance {
             distance = pattern_distance;
             median = pattern.to_string();
         }
-        if i % 1000 == 0{
-            let dt = Utc::now();
-            write!(file, "{dt} - processing pattern {i} of {len} in median_string\n",i=i+1).expect("Unable to write data");
-        }
+        // if i % 1000 == 0{
+        //     let dt = Utc::now();
+        //     write!(file, "{dt} - processing pattern {i} of {len} in median_string\n",i=i+1).expect("Unable to write data");
+        // }
     }
 
     median

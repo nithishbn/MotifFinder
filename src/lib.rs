@@ -4,7 +4,7 @@ use rand::prelude::*;
 
 use std::collections::HashMap;
 pub mod median_string;
-
+pub mod randomized_motif_search;
 pub fn generate_probability(kmer: &String, profile: &[Vec<f64>]) -> f64 {
     // given a kmer and a profile, generate its probability
     let mut probability = 1.0;
