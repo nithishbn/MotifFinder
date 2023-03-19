@@ -52,7 +52,7 @@ enum Commands {
 
     #[clap(
         name = "median",
-        about = "Run the Median String algorithm (Warning: this can take a long time to run for large values of k))"
+        about = "Run the Median String algorithm (Warning: this can take a long time to run for large values of k)"
     )]
     MedianString,
 
