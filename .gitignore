@@ -47,3 +47,7 @@ motifs_potential/
 from-tscc/
 
 *.txt
+
+*.jpg
+
+*.png
