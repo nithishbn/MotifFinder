@@ -77,7 +77,7 @@ pub enum Error {
 fn main() -> Result<(), Error> {
     let args = Cli::parse();
     let dt = Utc::now();
-    let start_time: i64 = dt.timestamp();
+    let start_time: i64 = dt.timestamp_micros();
     println!("start at {}", dt.format("%Y-%m-%d %H:%M:%S"));
     let sequences = load_data(&args.global_opts.input_file, args.global_opts.num_entries)?;
     let GlobalOpts { k, .. } = args.global_opts;
@@ -97,11 +97,13 @@ fn main() -> Result<(), Error> {
     for motif in motifs {
         println!("{}", motif);
     }
-    let dt = Utc::now();
-    println!("done at {}", dt.timestamp() - start_time);
-    let dt = Utc::now();
-    println!("End at {}", dt.format("%Y-%m-%d %H:%M:%S"));
-    println!("Done in {} seconds", dt.timestamp() - start_time);
+
+    let dt_end = Utc::now();
+    println!("End at {}", dt_end.format("%Y-%m-%d %H:%M:%S"));
+    if let Some(duration) = dt_end.signed_duration_since(dt).num_microseconds() {
+        println!("Done in {} seconds", duration as f64 / 1_000_000.0);
+    }
+
     Ok(())
 }
 

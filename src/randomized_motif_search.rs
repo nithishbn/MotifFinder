@@ -36,10 +36,10 @@ pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) ->
     let mut best_kmer = dummy;
 
     for i in 0..(text_len - k + 1) {
-        let kmer = text[i..i + k].to_string();
-        let kmer_prob = generate_probability(&kmer, profile);
+        let kmer = &text[i..i + k];
+        let kmer_prob = generate_probability(kmer, profile);
         if kmer_prob > best_probability_so_far {
-            best_kmer = kmer;
+            best_kmer = kmer.to_string();
             best_probability_so_far = kmer_prob;
         }
     }
