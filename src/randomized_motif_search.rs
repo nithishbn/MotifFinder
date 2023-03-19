@@ -28,7 +28,7 @@ pub fn randomized_motif_search(dna: &[String], k: usize) -> Vec<String> {
     }
 }
 
-pub fn profile_most_probable_kmer(text: &String, k: usize, profile: &[Vec<f64>]) -> String {
+pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) -> String {
     // given a profile, and a DNA string, check all kmers to see which one is the most probable
     let text_len = text.chars().count();
     let mut best_probability_so_far = -1.0;
@@ -48,7 +48,7 @@ pub fn profile_most_probable_kmer(text: &String, k: usize, profile: &[Vec<f64>])
 }
 
 pub fn generate_motifs_from_profile(
-    profile: &Vec<Vec<f64>>,
+    profile: &[Vec<f64>],
     dna: &[String],
     k: usize,
 ) -> Vec<String> {

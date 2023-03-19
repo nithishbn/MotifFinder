@@ -67,7 +67,7 @@ pub fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) ->
     }
     count_matrix
 }
-pub fn generate_probability(kmer: &String, profile: &[Vec<f64>]) -> f64 {
+pub fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
     // given a kmer and a profile, generate its probability
     let mut probability = 1.0;
     for (i, nuc) in kmer.chars().enumerate() {
@@ -78,9 +78,8 @@ pub fn generate_probability(kmer: &String, profile: &[Vec<f64>]) -> f64 {
             'T' => Some(3),
             _ => None,
         };
-        if nuc_index.is_some() {
+        if let Some(nuc_index) = nuc_index{
             // this should always be true but just in case
-            let nuc_index = nuc_index.unwrap();
             let current_prob = profile.get(nuc_index).unwrap().get(i).unwrap();
             probability *= current_prob;
         }

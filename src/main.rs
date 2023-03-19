@@ -71,6 +71,7 @@ enum Commands {
 pub enum Error {
     GenericError,
     IOError,
+    FileNotFoundError,
 }
 
 fn main() -> Result<(), Error> {
@@ -78,14 +79,26 @@ fn main() -> Result<(), Error> {
     let dt = Utc::now();
     let start_time: i64 = dt.timestamp();
     println!("start at {}", dt.format("%Y-%m-%d %H:%M:%S"));
-    let value = match &args.command {
-        Commands::GibbsSampler { .. } => run_gibbs_sampler(&args, dt, start_time),
-        Commands::MedianString => run_median_string(&args, dt, start_time),
-        Commands::Randomized { .. } => run_randomized_motif_search(&args, dt, start_time),
-    };
-    if let Err(_err) = value {
-        return Err(Error::GenericError);
+    let sequences = load_data(&args.global_opts.input_file, args.global_opts.num_entries)?;
+    let GlobalOpts { k, .. } = args.global_opts;
+    let motifs = match args.command {
+        Commands::GibbsSampler {
+            num_iterations,
+            num_runs,
+        } => run_gibbs_sampler(&sequences, k, num_runs, num_iterations),
+        Commands::MedianString => run_median_string(&sequences, &args),
+        Commands::Randomized { num_runs } => run_randomized_motif_search(&sequences, k, num_runs),
+    }?;
+    if let Some(save_flag) = &args.global_opts.output_file {
+        let (mut file, file_path) = create_output_file(save_flag, &args, dt, start_time)?;
+        write_motifs(&mut file, &motifs)?;
+        println!("Saved to file: {}", file_path);
     }
+    for motif in motifs {
+        println!("{}", motif);
+    }
+    let dt = Utc::now();
+    println!("done at {}", dt.timestamp() - start_time);
     let dt = Utc::now();
     println!("End at {}", dt.format("%Y-%m-%d %H:%M:%S"));
     println!("Done in {} seconds", dt.timestamp() - start_time);
@@ -102,11 +115,11 @@ where
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
     println!("Loading data from '{}'...", path_to_file);
     let mut sequences = vec![];
-        let mut current_sequence = String::new();
-        let mut sequence_count = 0;
+    let mut current_sequence = String::new();
+    let mut sequence_count = 0;
     if let Ok(lines) = read_lines(path_to_file) {
         for line in lines {
-            if let Ok(line) = line{
+            if let Ok(line) = line {
                 if line.starts_with('>') {
                     sequence_count += 1;
                     if sequence_count > num_entries {
@@ -119,107 +132,48 @@ fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Erro
                 } else {
                     current_sequence.push_str(&line.to_uppercase());
                 }
-            }else{
+            } else {
                 return Err(Error::IOError);
             }
-            
         }
         if !current_sequence.is_empty() {
             sequences.push(current_sequence.clone());
         }
+    } else {
+        return Err(Error::FileNotFoundError);
     }
     println!("Done loading data: {} entries", sequences.len());
     Ok(sequences)
 }
-fn run_gibbs_sampler(args_cli: &Cli, dt: DateTime<Utc>, start_time: i64) -> Result<(), Error> {
-    let (num_runs, num_iterations) = if let Commands::GibbsSampler {
-        num_runs,
+fn run_gibbs_sampler(
+    sequences: &[String],
+    k: usize,
+    num_runs: usize,
+    num_iterations: usize,
+) -> Result<Vec<String>, Error> {
+    Ok(iterate_gibbs_sampler(
+        sequences,
+        k,
+        sequences.len(),
         num_iterations,
-    } = &args_cli.command
-    {
-        (*num_runs, *num_iterations)
-    } else {
-        return Err(Error::GenericError);
-    };
-    let Cli {
-        global_opts: args,
-        command: _,
-    } = args_cli;
-    let genome = load_data(&args.input_file, args.num_entries);
-    let genome = match genome {
-        Ok(genome) => genome,
-        Err(_err) => return Err(Error::IOError),
-    };
-    let motifs = iterate_gibbs_sampler(&genome, args.k, genome.len(), num_iterations, num_runs);
-    if let Some(save_flag) = &args.output_file {
-        let (mut file, file_path) = create_output_file(&save_flag, args_cli, dt, start_time)?;
-        write_motifs(&mut file, &motifs)?;
-        println!("Saved to file: {}", file_path);
-    }
-    for motif in motifs {
-        println!("{}", motif);
-    }
-
-    Ok(())
+        num_runs,
+    ))
 }
 
-fn run_median_string(args: &Cli, dt: DateTime<Utc>, start_time: i64) -> Result<(), Error> {
-    let genome = load_data(&args.global_opts.input_file, args.global_opts.num_entries);
-    let genome = match genome {
-        Ok(genome) => genome,
-        Err(_err) => return Err(Error::IOError),
-    };
-    let median_string = median_string(args.global_opts.k, &genome);
+fn run_median_string(sequences: &[String], args: &Cli) -> Result<Vec<String>, Error> {
+    let median_string = median_string(args.global_opts.k, sequences);
     println!("median string: {}", median_string);
-    if let Some(save_flag) = &args.global_opts.output_file {
-        // save flag exists?
-        let (mut file, file_path) = create_output_file(save_flag, args, dt, start_time)?;
-        match writeln!(file, "median string: {}", median_string) {
-            Ok(()) => {}
-            Err(_err) => return Err(Error::IOError),
-        }
-        println!("Saved to file: {}", file_path);
-    }
+    let vec = vec![median_string];
 
-    Ok(())
+    Ok(vec)
 }
 
 fn run_randomized_motif_search(
-    args_cli: &Cli,
-    dt: DateTime<Utc>,
-    start_time: i64,
-) -> Result<(), Error> {
-    let num_runs = if let Commands::Randomized { num_runs } = &args_cli.command {
-        *num_runs
-    } else {
-        return Err(Error::GenericError);
-    };
-    let Cli {
-        global_opts: args,
-        command: _,
-    } = args_cli;
-
-    let genome = load_data(&args.input_file, args.num_entries);
-    let genome = match genome {
-        Ok(genome) => genome,
-        Err(_err) => return Err(Error::IOError),
-    };
-    let motifs = iterate_randomized_motif_search(&genome, args.k, num_runs);
-
-    if let Some(save_flag) = &args.output_file {
-        let (mut file, file_path) = create_output_file(save_flag, args_cli, dt, start_time)?;
-        match write_motifs(&mut file, &motifs) {
-            Ok(()) => {}
-            Err(_err) => return Err(Error::IOError),
-        }
-        println!("Saved to file: {}", file_path);
-    }
-    for motif in motifs {
-        println!("{}", motif);
-    }
-    let dt = Utc::now();
-    println!("done at {}", dt.timestamp() - start_time);
-    Ok(())
+    sequences: &[String],
+    k: usize,
+    num_runs: usize,
+) -> Result<Vec<String>, Error> {
+    Ok(iterate_randomized_motif_search(sequences, k, num_runs))
 }
 
 fn write_file_header(file: &mut fs::File, args_cli: &Cli, dt: DateTime<Utc>) -> io::Result<()> {
@@ -280,11 +234,11 @@ fn create_output_file(
     Ok((file, save_path))
 }
 
-fn write_motifs(file: &mut fs::File, motifs: &Vec<String>) -> Result<(), Error> {
+fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
     for (i, motif) in motifs.iter().enumerate() {
         let motif = motif.trim();
-        write!(file, ">motif {}\n", i + 1).map_err(|_| Error::IOError)?;
-        write!(file, "{}\n", motif).map_err(|_| Error::IOError)?;
+        writeln!(file, ">motif {}", i + 1).map_err(|_| Error::IOError)?;
+        writeln!(file, "{}", motif).map_err(|_| Error::IOError)?;
     }
 
     Ok(())

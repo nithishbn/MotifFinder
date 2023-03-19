@@ -1,7 +1,7 @@
 use rayon::prelude::*;
 use std::collections::HashSet;
 
-pub fn hamming_distance(string1: &str, string2: &String) -> usize {
+pub fn hamming_distance(string1: &str, string2: &str) -> usize {
     // scan linearly across both strings to find how many differences they have between each other
     let length = string1.chars().count();
     let mut distance = 0;
@@ -50,7 +50,7 @@ pub fn neighbors(pattern: String, d: usize) -> HashSet<String> {
     }
     neighborhood
 }
-pub fn median_string(k: usize, dna: &Vec<String>) -> String {
+pub fn median_string(k: usize, dna: &[String]) -> String {
     let mut distance = usize::MAX;
     let dummy_string = "A".repeat(k);
     let patterns = neighbors(dummy_string, k);
@@ -62,7 +62,7 @@ pub fn median_string(k: usize, dna: &Vec<String>) -> String {
             "processing pattern {i} of {len} in median_string",
             i = i + 1
         );
-        let pattern_distance = distance_between_pattern_and_strings(&pattern, &dna);
+        let pattern_distance = distance_between_pattern_and_strings(pattern, dna);
         if distance > pattern_distance {
             distance = pattern_distance;
             median = pattern.to_string();
@@ -76,7 +76,7 @@ pub fn median_string(k: usize, dna: &Vec<String>) -> String {
     median
 }
 
-pub fn distance_between_pattern_and_strings(pattern: &String, dna: &Vec<String>) -> usize {
+pub fn distance_between_pattern_and_strings(pattern: &str, dna: &[String]) -> usize {
     let k = pattern.chars().count();
     let mut distance: usize = 0;
     for (i, seq) in dna.iter().enumerate() {
@@ -90,7 +90,7 @@ pub fn distance_between_pattern_and_strings(pattern: &String, dna: &Vec<String>)
 
         for i in 0..seq_len - k + 1 {
             let kmer = &seq[i..i + k].to_string();
-            let new_hamming = hamming_distance(&pattern, kmer);
+            let new_hamming = hamming_distance(pattern, kmer);
             if hammingdist > new_hamming {
                 hammingdist = new_hamming;
             }
