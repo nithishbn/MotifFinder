@@ -34,7 +34,7 @@ pub fn scoring_function(motif_matrix: &[String]) -> usize {
     score
 }
 pub fn generate_profile_given_motif_matrix(
-    motif_matrix: &Vec<String>,
+    motif_matrix: &[String],
     pseudo: bool,
 ) -> Result<Vec<Vec<f64>>, Error> {
     // generate probabilities per column using the count matrix divided by sum of each column

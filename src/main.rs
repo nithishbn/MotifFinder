@@ -223,7 +223,7 @@ fn create_output_file(
         Ok(file) => file,
         Err(_err) => return Err(Error::IOError),
     };
-    match write_file_header(&mut file, args, dt, &consensus_string) {
+    match write_file_header(&mut file, args, dt, consensus_string) {
         Ok(()) => {}
         Err(_err) => return Err(Error::IOError),
     };
@@ -241,7 +241,7 @@ fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
 }
 
 fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
-    if motifs.len() == 0 {
+    if motifs.is_empty() {
         return Err(Error::InvalidMotifError);
     } else if motifs.len() == 1 {
         return Ok(motifs[0].clone());

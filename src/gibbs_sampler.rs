@@ -1,9 +1,9 @@
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 
-use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
 use crate::Error;
-pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>,Error> {
+use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
+pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>, Error> {
     // similar to randomized motif search but at every step we randomly remove one motif from the motifs list
     // we add this back in the form of the profile randomly generated kmer for that profile
     // profile_randomly_generated also adds in a level of randomness based on the profile it generates
@@ -72,7 +72,7 @@ pub fn iterate_gibbs_sampler(
     t: usize,
     iterations: usize,
     runs: usize,
-) -> Result<Vec<String>,Error> {
+) -> Result<Vec<String>, Error> {
     // gibbs but iterate
     println!("initializing gibbs sampler");
     let mut motifs = gibbs_sampler(dna, k, t, iterations)?;

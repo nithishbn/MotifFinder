@@ -1,11 +1,11 @@
-use rand::{thread_rng, Rng};
 use crate::Error;
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
+use rand::{thread_rng, Rng};
 /*
 I used "better scoring function" which is based on entropy, but I included the integer,
 sum-based scoring function as well for reference
 */
-pub fn randomized_motif_search(dna: &[String], k: usize) -> Result<Vec<String>,Error> {
+pub fn randomized_motif_search(dna: &[String], k: usize) -> Result<Vec<String>, Error> {
     let mut best_motifs = vec![];
 
     for seq in dna {
@@ -47,18 +47,18 @@ pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) ->
     best_kmer
 }
 
-pub fn generate_motifs_from_profile(
-    profile: &[Vec<f64>],
-    dna: &[String],
-    k: usize,
-) -> Vec<String> {
+pub fn generate_motifs_from_profile(profile: &[Vec<f64>], dna: &[String], k: usize) -> Vec<String> {
     let mut motifs: Vec<String> = vec![];
     for seq in dna {
         motifs.push(profile_most_probable_kmer(seq, k, profile));
     }
     motifs
 }
-pub fn iterate_randomized_motif_search(dna: &[String], k: usize, runs: usize) -> Result<Vec<String>,Error> {
+pub fn iterate_randomized_motif_search(
+    dna: &[String],
+    k: usize,
+    runs: usize,
+) -> Result<Vec<String>, Error> {
     println!("Starting randomized motif search with {} runs", runs);
     let mut motifs = randomized_motif_search(dna, k)?;
     let mut best_score = scoring_function(&motifs);
