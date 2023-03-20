@@ -1,12 +1,12 @@
-use std::fs::{self, File};
-use std::io::{self, BufRead, Write};
-use std::path::Path;
-
 use chrono::{DateTime, Utc};
 use clap::{Args, Parser, Subcommand};
 use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
 use motif_finder::median_string::median_string;
 use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
+use motif_finder::{consensus_string, Error};
+use std::fs::{self, File};
+use std::io::{self, BufRead, Write};
+use std::path::Path;
 
 /// Motif Finder
 #[derive(Parser)]
@@ -21,7 +21,6 @@ struct Cli {
 #[derive(Debug, Args)]
 struct GlobalOpts {
     /// file path of the genome
-    #[arg(short, long = "input")]
     input_file: String,
 
     /// how many entries to read
@@ -33,7 +32,7 @@ struct GlobalOpts {
     k: usize,
 
     /// save motifs to file
-    #[arg(short, long = "output")]
+    #[arg(short = 'o', long = "output")]
     output_file: Option<Option<String>>,
 }
 
@@ -67,13 +66,6 @@ enum Commands {
     },
 }
 
-#[derive(Debug)]
-pub enum Error {
-    GenericError,
-    IOError,
-    FileNotFoundError,
-}
-
 fn main() -> Result<(), Error> {
     let args = Cli::parse();
     let dt = Utc::now();
@@ -89,15 +81,17 @@ fn main() -> Result<(), Error> {
         Commands::MedianString => run_median_string(&sequences, &args),
         Commands::Randomized { num_runs } => run_randomized_motif_search(&sequences, k, num_runs),
     }?;
+    let consensus_string = generate_consensus_string(&motifs, k)?;
     if let Some(save_flag) = &args.global_opts.output_file {
-        let (mut file, file_path) = create_output_file(save_flag, &args, dt, start_time)?;
+        let (mut file, file_path) =
+            create_output_file(save_flag, &args, &consensus_string, dt, start_time)?;
         write_motifs(&mut file, &motifs)?;
         println!("Saved to file: {}", file_path);
     }
-    for motif in motifs {
-        println!("{}", motif);
-    }
-
+    // for motif in motifs {
+    //     println!("{}", motif);
+    // }
+    println!("Consensus string: {}", consensus_string);
     let dt_end = Utc::now();
     println!("End at {}", dt_end.format("%Y-%m-%d %H:%M:%S"));
     if let Some(duration) = dt_end.signed_duration_since(dt).num_microseconds() {
@@ -148,25 +142,18 @@ fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Erro
     Ok(sequences)
 }
 fn run_gibbs_sampler(
-    sequences: &[String],
+    sequences: &Vec<String>,
     k: usize,
     num_runs: usize,
     num_iterations: usize,
 ) -> Result<Vec<String>, Error> {
-    Ok(iterate_gibbs_sampler(
-        sequences,
-        k,
-        sequences.len(),
-        num_iterations,
-        num_runs,
-    ))
+    iterate_gibbs_sampler(sequences, k, sequences.len(), num_iterations, num_runs)
 }
 
 fn run_median_string(sequences: &[String], args: &Cli) -> Result<Vec<String>, Error> {
     let median_string = median_string(args.global_opts.k, sequences);
     println!("median string: {}", median_string);
     let vec = vec![median_string];
-
     Ok(vec)
 }
 
@@ -175,10 +162,15 @@ fn run_randomized_motif_search(
     k: usize,
     num_runs: usize,
 ) -> Result<Vec<String>, Error> {
-    Ok(iterate_randomized_motif_search(sequences, k, num_runs))
+    iterate_randomized_motif_search(sequences, k, num_runs)
 }
 
-fn write_file_header(file: &mut fs::File, args_cli: &Cli, dt: DateTime<Utc>) -> io::Result<()> {
+fn write_file_header(
+    file: &mut fs::File,
+    args_cli: &Cli,
+    dt: DateTime<Utc>,
+    consensus_string: &str,
+) -> io::Result<()> {
     let Cli {
         global_opts: args,
         command: _,
@@ -209,6 +201,7 @@ fn write_file_header(file: &mut fs::File, args_cli: &Cli, dt: DateTime<Utc>) -> 
     writeln!(file, "Start time: {}", dt.format("%Y-%m-%d %H:%M:%S"))?;
     let dt = Utc::now();
     writeln!(file, "End time: {}", dt.format("%Y-%m-%d %H:%M:%S"))?;
+    writeln!(file, "Consensus string: {}", consensus_string)?;
     writeln!(
         file,
         "_______________________________________________________________________________________"
@@ -219,6 +212,7 @@ fn write_file_header(file: &mut fs::File, args_cli: &Cli, dt: DateTime<Utc>) -> 
 fn create_output_file(
     save_flag: &Option<String>,
     args: &Cli,
+    consensus_string: &str,
     dt: DateTime<Utc>,
     timestamp: i64,
 ) -> Result<(File, String), Error> {
@@ -229,7 +223,7 @@ fn create_output_file(
         Ok(file) => file,
         Err(_err) => return Err(Error::IOError),
     };
-    match write_file_header(&mut file, args, dt) {
+    match write_file_header(&mut file, args, dt, &consensus_string) {
         Ok(()) => {}
         Err(_err) => return Err(Error::IOError),
     };
@@ -244,4 +238,13 @@ fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
+    if motifs.len() == 0 {
+        return Err(Error::InvalidMotifError);
+    } else if motifs.len() == 1 {
+        return Ok(motifs[0].clone());
+    }
+    consensus_string(motifs, k)
 }

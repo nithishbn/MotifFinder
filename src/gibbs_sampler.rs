@@ -2,8 +2,8 @@ use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
-
-pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Vec<String> {
+use crate::Error;
+pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>,Error> {
     // similar to randomized motif search but at every step we randomly remove one motif from the motifs list
     // we add this back in the form of the profile randomly generated kmer for that profile
     // profile_randomly_generated also adds in a level of randomness based on the profile it generates
@@ -23,7 +23,7 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Vec<String
         let mut motifs = best_motifs.clone();
         let i = thread_rng().gen_range(0..t);
         motifs.remove(i);
-        let profile = generate_profile_given_motif_matrix(&best_motifs, true);
+        let profile = generate_profile_given_motif_matrix(&best_motifs, true)?;
         if let Some(motif_i) = profile_randomly_generated_kmer(&dna[i], k, &profile) {
             motifs.insert(i, motif_i);
             let test_score = scoring_function(&motifs);
@@ -34,7 +34,7 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Vec<String
         }
     }
 
-    best_motifs
+    Ok(best_motifs)
 }
 pub fn profile_randomly_generated_kmer(
     text: &str,
@@ -72,14 +72,14 @@ pub fn iterate_gibbs_sampler(
     t: usize,
     iterations: usize,
     runs: usize,
-) -> Vec<String> {
+) -> Result<Vec<String>,Error> {
     // gibbs but iterate
     println!("initializing gibbs sampler");
-    let mut motifs = gibbs_sampler(dna, k, t, iterations);
+    let mut motifs = gibbs_sampler(dna, k, t, iterations)?;
     let mut best_score = scoring_function(&motifs);
     for i in 1..=runs {
         println!("Starting run {i}",);
-        let check = gibbs_sampler(dna, k, t, iterations);
+        let check = gibbs_sampler(dna, k, t, iterations)?;
         let check_score = scoring_function(&check);
         if check_score < best_score {
             motifs = check;
@@ -87,5 +87,5 @@ pub fn iterate_gibbs_sampler(
         }
     }
 
-    motifs
+    Ok(motifs)
 }
