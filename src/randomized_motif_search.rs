@@ -1,11 +1,11 @@
-use rand::{thread_rng, Rng};
-
+use crate::Error;
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
+use rand::{thread_rng, Rng};
 /*
 I used "better scoring function" which is based on entropy, but I included the integer,
 sum-based scoring function as well for reference
 */
-pub fn randomized_motif_search(dna: &[String], k: usize) -> Vec<String> {
+pub fn randomized_motif_search(dna: &[String], k: usize) -> Result<Vec<String>, Error> {
     let mut best_motifs = vec![];
 
     for seq in dna {
@@ -16,14 +16,14 @@ pub fn randomized_motif_search(dna: &[String], k: usize) -> Vec<String> {
 
     let mut best_score = scoring_function(&best_motifs);
     loop {
-        let profile = generate_profile_given_motif_matrix(&best_motifs, true);
+        let profile = generate_profile_given_motif_matrix(&best_motifs, true)?;
         let motifs = generate_motifs_from_profile(&profile, dna, k);
         let test_score = scoring_function(&motifs);
         if test_score < best_score {
             best_score = test_score;
             best_motifs = motifs;
         } else {
-            return best_motifs;
+            return Ok(best_motifs);
         }
     }
 }
@@ -47,24 +47,24 @@ pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) ->
     best_kmer
 }
 
-pub fn generate_motifs_from_profile(
-    profile: &[Vec<f64>],
-    dna: &[String],
-    k: usize,
-) -> Vec<String> {
+pub fn generate_motifs_from_profile(profile: &[Vec<f64>], dna: &[String], k: usize) -> Vec<String> {
     let mut motifs: Vec<String> = vec![];
     for seq in dna {
         motifs.push(profile_most_probable_kmer(seq, k, profile));
     }
     motifs
 }
-pub fn iterate_randomized_motif_search(dna: &[String], k: usize, runs: usize) -> Vec<String> {
+pub fn iterate_randomized_motif_search(
+    dna: &[String],
+    k: usize,
+    runs: usize,
+) -> Result<Vec<String>, Error> {
     println!("Starting randomized motif search with {} runs", runs);
-    let mut motifs = randomized_motif_search(dna, k);
+    let mut motifs = randomized_motif_search(dna, k)?;
     let mut best_score = scoring_function(&motifs);
     for _i in 0..runs {
         println!("Run: {}", _i + 1);
-        let check = randomized_motif_search(dna, k);
+        let check = randomized_motif_search(dna, k)?;
         let check_score = scoring_function(&check);
         if check_score < best_score {
             motifs = check;
@@ -72,5 +72,5 @@ pub fn iterate_randomized_motif_search(dna: &[String], k: usize, runs: usize) ->
         }
     }
 
-    motifs
+    Ok(motifs)
 }
