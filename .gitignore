@@ -51,3 +51,5 @@ from-tscc/
 *.jpg
 
 *.png
+
+wapm_packages
