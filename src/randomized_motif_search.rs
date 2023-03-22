@@ -11,6 +11,9 @@ pub fn randomized_motif_search(dna: &[String], k: usize) -> Result<Vec<String>, 
     for seq in dna {
         let dna_length = seq.chars().count();
         let start_index = thread_rng().gen_range(0..(dna_length - k + 1));
+        if k > dna_length {
+            return Err(Error::InvalidKmerLength);
+        }
         best_motifs.push(seq[start_index..start_index + k].to_string());
     }
 

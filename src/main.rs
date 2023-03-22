@@ -73,6 +73,9 @@ fn main() -> Result<(), Error> {
     println!("start at {}", dt.format("%Y-%m-%d %H:%M:%S"));
     let sequences = load_data(&args.global_opts.input_file, args.global_opts.num_entries)?;
     let GlobalOpts { k, .. } = args.global_opts;
+    if k == 0 {
+        return Err(Error::InvalidMotifLength);
+    }
     let motifs = match args.command {
         Commands::GibbsSampler {
             num_iterations,
@@ -147,11 +150,18 @@ fn run_gibbs_sampler(
     num_runs: usize,
     num_iterations: usize,
 ) -> Result<Vec<String>, Error> {
+    if num_runs == 0 {
+        return Err(Error::InvalidNumberOfRuns);
+    }
+    if num_iterations == 0 {
+        return Err(Error::InvalidNumberOfIterations);
+    }
+
     iterate_gibbs_sampler(sequences, k, sequences.len(), num_iterations, num_runs)
 }
 
 fn run_median_string(sequences: &[String], args: &Cli) -> Result<Vec<String>, Error> {
-    let median_string = median_string(args.global_opts.k, sequences);
+    let median_string = median_string(args.global_opts.k, sequences)?;
     println!("median string: {}", median_string);
     let vec = vec![median_string];
     Ok(vec)
@@ -162,6 +172,9 @@ fn run_randomized_motif_search(
     k: usize,
     num_runs: usize,
 ) -> Result<Vec<String>, Error> {
+    if num_runs == 0 {
+        return Err(Error::InvalidNumberOfRuns);
+    }
     iterate_randomized_motif_search(sequences, k, num_runs)
 }
 
@@ -242,7 +255,7 @@ fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
 
 fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     if motifs.is_empty() {
-        return Err(Error::InvalidMotifError);
+        return Err(Error::NoMotifsFound);
     } else if motifs.len() == 1 {
         return Ok(motifs[0].clone());
     }
