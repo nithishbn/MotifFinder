@@ -5,6 +5,9 @@ description = "Find motifs using Gibbs Sampler, Median String, and Randomized Mo
 license = "GPL-3.0-or-later"
 repository = "https://github.com/nithishbn/MotifFinder"
 
+[dependencies]
+"nithishbn/motif_finder" = "0.1.6"
+
 [[module]]
 name = "motif_finder"
 source = "target/wasm32-wasi/release/motif_finder.wasm"
@@ -16,4 +19,3 @@ wasi = "0.0.0-unstable"
 [[command]]
 name = "motif_finder"
 module = "motif_finder"
-runner = "wasi@unstable_"
