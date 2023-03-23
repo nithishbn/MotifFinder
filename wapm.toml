@@ -1,0 +1,21 @@
+[package]
+name = "nithishbn/MotifFinder"
+version = "0.1.0"
+description = "Find motifs using Gibbs Sampler, Median String, and Randomized Motif Search algorithms in a fasta formatted file of reads"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/nithishbn/MotifFinder"
+
+[dependencies]
+"nithishbn/motif_finder" = "0.1.6"
+
+[[module]]
+name = "motif_finder"
+source = "target/wasm32-wasi/release/motif_finder.wasm"
+abi = "wasi"
+
+[module.interfaces]
+wasi = "0.0.0-unstable"
+
+[[command]]
+name = "motif_finder"
+module = "motif_finder"
