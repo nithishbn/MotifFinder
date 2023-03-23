@@ -5,9 +5,9 @@ use motif_finder::median_string::median_string;
 use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
 use motif_finder::{consensus_string, Error};
 use std::fs::{self, File};
-use std::io::{self, BufRead, Write};
-use std::path::Path;
-
+use std::io::{self, Write};
+use std::str;
+use bio::io::fasta;
 /// Motif Finder
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -104,42 +104,27 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where
-    P: AsRef<Path>,
-{
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
-}
+
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
     println!("Loading data from '{}'...", path_to_file);
-    let mut sequences = vec![];
-    let mut current_sequence = String::new();
-    let mut sequence_count = 0;
-    if let Ok(lines) = read_lines(path_to_file) {
-        for line in lines {
-            if let Ok(line) = line {
-                if line.starts_with('>') {
-                    sequence_count += 1;
-                    if sequence_count > num_entries {
-                        break;
-                    }
-                    if !current_sequence.is_empty() {
-                        sequences.push(current_sequence.clone());
-                        current_sequence.clear();
-                    }
-                } else {
-                    current_sequence.push_str(&line.to_uppercase());
-                }
-            } else {
-                return Err(Error::IOError);
-            }
+    let mut sequences= vec![];
+    let file = match File::open(path_to_file){
+        Ok(file) => file,
+        Err(_) => return Err(Error::FileNotFoundError),
+    };
+    let mut records = fasta::Reader::new(file).records();
+    let mut count = 0;
+    while let Some(Ok(record)) = records.next() {
+        count += 1;
+        if count > num_entries {
+            break;
         }
-        if !current_sequence.is_empty() {
-            sequences.push(current_sequence.clone());
-        }
-    } else {
-        return Err(Error::FileNotFoundError);
+        let s = match str::from_utf8(record.seq()) {
+            Ok(v) => v,
+            Err(_e) => return Err(Error::InvalidSequence),
+        }.to_string().to_uppercase();
+    
+        sequences.push(s);
     }
     println!("Done loading data: {} entries", sequences.len());
     Ok(sequences)
@@ -260,4 +245,24 @@ fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Erro
         return Ok(motifs[0].clone());
     }
     consensus_string(motifs, k)
+}
+
+
+
+#[cfg(test)]
+mod test{
+    #[test]
+    pub fn test_load_data(){
+        let sequences = super::load_data("promoters.fasta", 4).unwrap();
+        assert_eq!(sequences.len(), 4);
+        let sequences = super::load_data("promoters.fasta", 3).unwrap();
+        assert_eq!(sequences.len(), 3);
+        let sequences = super::load_data("promoters.fasta", 2).unwrap();
+        assert_eq!(sequences.len(), 2);
+        let sequences = super::load_data("promoters.fasta", 1).unwrap();
+        assert_eq!(sequences.len(), 1);
+        let sequences = super::load_data("promoters.fasta", 0).unwrap();
+        assert_eq!(sequences.len(), 0);
+        
+    }
 }

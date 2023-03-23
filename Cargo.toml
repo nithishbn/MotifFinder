@@ -10,8 +10,16 @@ description = "Find motifs using Gibbs Sampler, Median String, and Randomized Mo
 namespace = "nithishbn"
 abi = "wasi"
 
+[lib]
+path="src/lib.rs"
+
+[[bin]]
+path = "src/main.rs"
+name = "motif_finder"
+
 [dependencies]
 chrono = {version="0.4.24",default-features = false, features = ["clock"]}
 clap = { version = "4.1.8", default-features = false,features = ["derive", "std", "help", "usage", "error-context", "suggestions"]}
 rand = "0.8.5"
+bio = "*"
 
