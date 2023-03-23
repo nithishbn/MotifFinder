@@ -1,6 +1,6 @@
 [package]
 name = "motif_finder"
-version = "0.1.6"
+version = "0.1.4"
 edition = "2021"
 authors = ["Nithish Narasimman <me@nithishbn.com>"]
 description = "Find motifs using Gibbs Sampler, Median String, and Randomized Motif Search algorithms in a fasta formatted file of reads\nRefer to the README to understand the input data"
