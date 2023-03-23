@@ -15,7 +15,7 @@ pub enum Error {
     InvalidNumberOfIterations,
     InvalidMotifLength,
     NoMotifsFound,
-    InvalidSequence
+    InvalidSequence,
 }
 pub fn scoring_function(motif_matrix: &[String]) -> usize {
     // given a motif matrix, generate its score by finding the highest count of nucleotide in a given position

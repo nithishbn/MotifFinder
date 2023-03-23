@@ -1,3 +1,4 @@
+use bio::io::fasta;
 use chrono::{DateTime, Utc};
 use clap::{Args, Parser, Subcommand};
 use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
@@ -7,7 +8,6 @@ use motif_finder::{consensus_string, Error};
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::str;
-use bio::io::fasta;
 /// Motif Finder
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -104,11 +104,10 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
     println!("Loading data from '{}'...", path_to_file);
-    let mut sequences= vec![];
-    let file = match File::open(path_to_file){
+    let mut sequences = vec![];
+    let file = match File::open(path_to_file) {
         Ok(file) => file,
         Err(_) => return Err(Error::FileNotFoundError),
     };
@@ -122,8 +121,10 @@ fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Erro
         let s = match str::from_utf8(record.seq()) {
             Ok(v) => v,
             Err(_e) => return Err(Error::InvalidSequence),
-        }.to_string().to_uppercase();
-    
+        }
+        .to_string()
+        .to_uppercase();
+
         sequences.push(s);
     }
     println!("Done loading data: {} entries", sequences.len());
@@ -247,12 +248,10 @@ fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Erro
     consensus_string(motifs, k)
 }
 
-
-
 #[cfg(test)]
-mod test{
+mod test {
     #[test]
-    pub fn test_load_data(){
+    pub fn test_load_data() {
         let sequences = super::load_data("promoters.fasta", 4).unwrap();
         assert_eq!(sequences.len(), 4);
         let sequences = super::load_data("promoters.fasta", 3).unwrap();
@@ -263,6 +262,5 @@ mod test{
         assert_eq!(sequences.len(), 1);
         let sequences = super::load_data("promoters.fasta", 0).unwrap();
         assert_eq!(sequences.len(), 0);
-        
     }
 }
