@@ -12,7 +12,7 @@ pub fn randomized_motif_search(dna: &[String], k: usize) -> Result<Vec<String>, 
         let dna_length = seq.chars().count();
         let start_index = thread_rng().gen_range(0..(dna_length - k + 1));
         if k > dna_length {
-            return Err(Error::InvalidKmerLength);
+            continue;
         }
         best_motifs.push(seq[start_index..start_index + k].to_string());
     }
@@ -39,6 +39,9 @@ pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) ->
     let mut best_kmer = dummy;
 
     for i in 0..(text_len - k + 1) {
+        if k > text_len {
+            continue;
+        }
         let kmer = &text[i..i + k];
         let kmer_prob = generate_probability(kmer, profile);
         if kmer_prob > best_probability_so_far {

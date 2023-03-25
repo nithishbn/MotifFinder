@@ -15,7 +15,7 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec
         // dbg!(dna_length);
         // dbg!(start_index+k);
         if k > dna_length {
-            return Err(Error::InvalidKmerLength);
+            continue;
         }
         best_motifs.push(seq[start_index..start_index + k].to_string());
     }

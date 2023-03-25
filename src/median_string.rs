@@ -90,7 +90,7 @@ pub fn distance_between_pattern_and_strings(pattern: &str, dna: &[String]) -> Re
         let mut hammingdist = usize::MAX;
         let seq_len = seq.chars().count();
         if k > seq_len {
-            return Err(Error::InvalidKmerLength);
+            continue;
         }
         for i in 0..seq_len - k + 1 {
             let kmer = &seq[i..i + k].to_string();

@@ -28,8 +28,11 @@ pub fn scoring_function(motif_matrix: &[String]) -> usize {
     for i in 0..k {
         let mut count: HashMap<char, usize> = HashMap::new();
         for motif in motif_matrix {
-            let nuc = motif.chars().nth(i).unwrap();
-            *count.entry(nuc).or_insert(0) += 1;
+            if let Some(nuc) = motif.chars().nth(i) {
+                *count.entry(nuc).or_insert(0) += 1;
+            } else {
+                continue;
+            }
         }
 
         let max = count.iter().max_by_key(|f| f.1).unwrap().1;

@@ -67,15 +67,27 @@ enum Commands {
 }
 
 fn main() -> Result<(), Error> {
-    let args = Cli::parse();
+    let mut args = Cli::parse();
     let dt = Utc::now();
     let start_time: i64 = dt.timestamp_micros();
     println!("start at {}", dt.format("%Y-%m-%d %H:%M:%S"));
     let sequences = load_data(&args.global_opts.input_file, args.global_opts.num_entries)?;
+    args.global_opts.num_entries = sequences.len();
     let GlobalOpts { k, .. } = args.global_opts;
     if k == 0 {
         return Err(Error::InvalidMotifLength);
     }
+    let (file, file_path) = if let Some(save_flag) = &args.global_opts.output_file {
+        let (mut file, file_path) = create_output_file(save_flag, k, start_time)?;
+        match write_file_header(&mut file, &args, dt) {
+            Ok(()) => {}
+            Err(_err) => return Err(Error::IOError),
+        }
+        (Some(file), Some(file_path))
+    } else {
+        (None, None)
+    };
+
     let motifs = match args.command {
         Commands::GibbsSampler {
             num_iterations,
@@ -84,13 +96,21 @@ fn main() -> Result<(), Error> {
         Commands::MedianString => run_median_string(&sequences, &args),
         Commands::Randomized { num_runs } => run_randomized_motif_search(&sequences, k, num_runs),
     }?;
-    let consensus_string = generate_consensus_string(&motifs, k)?;
-    if let Some(save_flag) = &args.global_opts.output_file {
-        let (mut file, file_path) =
-            create_output_file(save_flag, &args, &consensus_string, dt, start_time)?;
-        write_motifs(&mut file, &motifs)?;
-        println!("Saved to file: {}", file_path);
-    }
+
+    let consensus_string = if let Some(mut file) = file {
+        match output_results_to_file(&mut file, &motifs, k) {
+            Ok(val) => {
+                println!("Results saved to {}", file_path.ok_or(Error::IOError)?);
+                val
+            }
+            Err(_err) => {
+                return Err(Error::IOError);
+            }
+        }
+    } else {
+        generate_consensus_string(&motifs, k)?
+    };
+
     // for motif in motifs {
     //     println!("{}", motif);
     // }
@@ -164,12 +184,7 @@ fn run_randomized_motif_search(
     iterate_randomized_motif_search(sequences, k, num_runs)
 }
 
-fn write_file_header(
-    file: &mut fs::File,
-    args_cli: &Cli,
-    dt: DateTime<Utc>,
-    consensus_string: &str,
-) -> io::Result<()> {
+fn write_file_header(file: &mut fs::File, args_cli: &Cli, dt: DateTime<Utc>) -> io::Result<()> {
     let Cli {
         global_opts: args,
         command: _,
@@ -198,37 +213,35 @@ fn write_file_header(
         Commands::MedianString => {}
     }
     writeln!(file, "Start time: {}", dt.format("%Y-%m-%d %H:%M:%S"))?;
-    let dt = Utc::now();
-    writeln!(file, "End time: {}", dt.format("%Y-%m-%d %H:%M:%S"))?;
-    writeln!(file, "Consensus string: {}", consensus_string)?;
-    writeln!(
-        file,
-        "_______________________________________________________________________________________"
-    )?;
+
     Ok(())
 }
 
 fn create_output_file(
     save_flag: &Option<String>,
-    args: &Cli,
-    consensus_string: &str,
-    dt: DateTime<Utc>,
+    k: usize,
     timestamp: i64,
 ) -> Result<(File, String), Error> {
     let save_path: String = save_flag
         .clone()
-        .unwrap_or_else(|| format!("MotifFinder-output-{timestamp}-{}.txt", args.global_opts.k));
-    let mut file = match fs::File::create(&save_path) {
+        .unwrap_or_else(|| format!("MotifFinder-output-{timestamp}-{}.txt", k));
+    let file = match fs::File::create(&save_path) {
         Ok(file) => file,
-        Err(_err) => return Err(Error::IOError),
-    };
-    match write_file_header(&mut file, args, dt, consensus_string) {
-        Ok(()) => {}
         Err(_err) => return Err(Error::IOError),
     };
     Ok((file, save_path))
 }
-
+fn output_results_to_file(
+    file: &mut fs::File,
+    motifs: &[String],
+    k: usize,
+) -> Result<String, Error> {
+    let consensus_string = generate_consensus_string(motifs, k)?;
+    writeln!(file, "Consensus string: {}", consensus_string).map_err(|_| Error::IOError)?;
+    writeln!(file,"_________________________________________________________________________________________").map_err(|_| Error::IOError)?;
+    write_motifs(file, motifs)?;
+    Ok(consensus_string)
+}
 fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
     for (i, motif) in motifs.iter().enumerate() {
         let motif = motif.trim();
