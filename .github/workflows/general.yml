@@ -1,4 +1,4 @@
-name: Rust
+name: Pre-Release
 
 on: [push, pull_request]
 
