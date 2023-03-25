@@ -1,5 +1,5 @@
 use crate::Error;
-
+use rayon::prelude::*;
 #[derive(PartialEq, Clone, Eq, Debug)]
 pub enum Pointer {
     DOWN,
@@ -115,7 +115,7 @@ pub fn local_alignment_score_and_backtrack_matrix(
                 s[i - 1][j - 1] + matching,
                 0,
             ];
-            s[i][j] = *temp.iter().max().unwrap();
+            s[i][j] = *temp.par_iter().max().unwrap();
 
             if s[i][j] == temp[0] {
                 backtrack[i][j] = Pointer::DOWN;
@@ -162,7 +162,7 @@ pub fn local_alignment_score_only(
                 s[i - 1][j - 1] + matching,
                 0,
             ];
-            s[i][j] = *temp.iter().max().unwrap();
+            s[i][j] = *temp.par_iter().max().unwrap();
         }
     }
     let (row, col) = max_of_matrix(&s);

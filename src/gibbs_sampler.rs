@@ -1,8 +1,8 @@
-use rand::distributions::WeightedIndex;
-use rand::prelude::*;
-
 use crate::Error;
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
+use rand::distributions::WeightedIndex;
+use rand::prelude::*;
+use rayon::prelude::*;
 pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>, Error> {
     // similar to randomized motif search but at every step we randomly remove one motif from the motifs list
     // we add this back in the form of the profile randomly generated kmer for that profile
@@ -55,11 +55,11 @@ pub fn profile_randomly_generated_kmer(
         kmers.push(kmer.to_string());
         probabilities.push(generate_probability(&kmer, profile));
     }
-    let sum: f64 = probabilities.iter().sum();
+    let sum: f64 = probabilities.par_iter().sum();
     if sum < 0.0 {
         return None;
     }
-    let adjusted_weights: Vec<f64> = probabilities.iter().map(|f| f / sum).collect();
+    let adjusted_weights: Vec<f64> = probabilities.par_iter().map(|f| f / sum).collect();
     // this block of code is taken straight from the rust reference since I am not familiar with the language
     // https://docs.rs/rand/0.7.3/rand/distributions/weighted/struct.WeightedIndex.html
     // similar to random choices from python

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::Error;
-
+use rayon::prelude::*;
 pub fn hamming_distance(string1: &str, string2: &str) -> usize {
     // scan linearly across both strings to find how many differences they have between each other
     let length = string1.chars().count();
@@ -18,7 +18,7 @@ pub fn hamming_distance(string1: &str, string2: &str) -> usize {
 pub fn neighbors(pattern: String, d: usize) -> HashSet<String> {
     // generate all neighbors of length |pattern| by modifying at most d nucleotides
     if d == 0 {
-        let pattern_set: HashSet<String> = vec![pattern].into_iter().collect();
+        let pattern_set: HashSet<String> = vec![pattern].into_par_iter().collect();
         return pattern_set;
     }
     if pattern.len() == 1 {
@@ -28,7 +28,7 @@ pub fn neighbors(pattern: String, d: usize) -> HashSet<String> {
             "G".to_string(),
             "T".to_string(),
         ]
-        .into_iter()
+        .into_par_iter()
         .collect();
         return base_case;
     }
