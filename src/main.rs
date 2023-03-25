@@ -238,7 +238,11 @@ fn output_results_to_file(
 ) -> Result<String, Error> {
     let consensus_string = generate_consensus_string(motifs, k)?;
     writeln!(file, "Consensus string: {}", consensus_string).map_err(|_| Error::IOError)?;
-    writeln!(file,"_________________________________________________________________________________________").map_err(|_| Error::IOError)?;
+    writeln!(
+        file,
+        "_________________________________________________________________________________________"
+    )
+    .map_err(|_| Error::IOError)?;
     write_motifs(file, motifs)?;
     Ok(consensus_string)
 }
