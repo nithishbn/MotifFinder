@@ -1,6 +1,7 @@
 use bio::io::fasta;
 use chrono::{DateTime, Utc};
 use clap::{Args, Parser, Subcommand};
+use motif_finder::alignment::local_alignment;
 use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
 use motif_finder::median_string::median_string;
 use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
@@ -30,6 +31,10 @@ struct GlobalOpts {
     /// motif length
     #[arg(short)]
     k: usize,
+
+    /// alignment
+    #[arg(short = 'a', long = "align")]
+    align: bool,
 
     /// save motifs to file
     #[arg(short = 'o', long = "output")]
@@ -111,9 +116,11 @@ fn main() -> Result<(), Error> {
         generate_consensus_string(&motifs, k)?
     };
 
-    // for motif in motifs {
-    //     println!("{}", motif);
-    // }
+    if args.global_opts.align {
+        let (highest_score, alignment) = align_motifs(&sequences, &consensus_string)?;
+        println!("Highest score: {}", highest_score);
+        println!("Alignment: {}", alignment);
+    }
     println!("Consensus string: {}", consensus_string);
     let dt_end = Utc::now();
     println!("End at {}", dt_end.format("%Y-%m-%d %H:%M:%S"));
@@ -122,6 +129,21 @@ fn main() -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+fn align_motifs(sequences: &[String], consensus_string: &str) -> Result<(isize,String), Error> {
+    
+    println!("Aligning consensus to sequences...");
+    let mut highest_score = 0;
+    let mut best_alignment = String::from("");
+    for sequence in sequences {
+        let (score, _, aligned) = local_alignment(sequence, consensus_string, 1, -5, -3)?;
+        if score > highest_score{
+            best_alignment = aligned;
+            highest_score = score;
+        }
+    }
+    Ok((highest_score,best_alignment))
 }
 
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {

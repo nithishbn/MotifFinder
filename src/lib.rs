@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+pub mod alignment;
 pub mod gibbs_sampler;
 pub mod median_string;
 pub mod randomized_motif_search;
@@ -16,6 +17,7 @@ pub enum Error {
     InvalidMotifLength,
     NoMotifsFound,
     InvalidSequence,
+    InvalidPointerError,
 }
 pub fn scoring_function(motif_matrix: &[String]) -> usize {
     // given a motif matrix, generate its score by finding the highest count of nucleotide in a given position
