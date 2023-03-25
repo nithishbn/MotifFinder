@@ -3,8 +3,10 @@ name = "motif_finder"
 version = "0.1.4"
 edition = "2021"
 authors = ["Nithish Narasimman <me@nithishbn.com>"]
+license = "GPL-3.0-only"
 description = "Find motifs using Gibbs Sampler, Median String, and Randomized Motif Search algorithms in a fasta formatted file of reads\nRefer to the README to understand the input data"
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+repository = "https://github.com/nithishbn/MotifFinder"
+homepage = "https://github.com/nithishbn/MotifFinder"
 
 [package.metadata.wapm]
 namespace = "nithishbn"
@@ -18,8 +20,9 @@ path = "src/main.rs"
 name = "motif_finder"
 
 [dependencies]
+bio = "1.1.0"
 chrono = {version="0.4.24",default-features = false, features = ["clock"]}
 clap = { version = "4.1.8", default-features = false,features = ["derive", "std", "help", "usage", "error-context", "suggestions"]}
 rand = "0.8.5"
-bio = "*"
+
 
