@@ -8,7 +8,8 @@ use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
 use motif_finder::{consensus_string, Error};
 use std::fs::{self, File};
 use std::io::{self, Write};
-use std::str;
+use std::sync::{Arc, Mutex};
+use std::{str, thread};
 /// Motif Finder
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -108,8 +109,9 @@ fn main() -> Result<(), Error> {
 
     let consensus_string = generate_consensus_string(&motifs, k)?;
     println!("Consensus string: {}", consensus_string);
+    let motifs_clone = motifs.clone();
     let (best_motif_score, best_motif) = if args.global_opts.align {
-        let (best_motif_score, best_motif) = align_motifs(&sequences, &motifs)?;
+        let (best_motif_score, best_motif) = align_motifs(sequences, motifs)?;
         println!("Highest score: {}", best_motif_score);
         println!("Best motif: {}", best_motif);
         (Some(best_motif_score), Some(best_motif))
@@ -122,7 +124,7 @@ fn main() -> Result<(), Error> {
             best_motif,
             best_motif_score,
         };
-        match output_results_to_file(&mut file, &motifs, &summary) {
+        match output_results_to_file(&mut file, &motifs_clone, &summary) {
             Ok(()) => {
                 println!("Results saved to {}", file_path.ok_or(Error::IOError)?);
             }
@@ -141,22 +143,58 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn align_motifs(sequences: &[String], motifs: &[String]) -> Result<(isize, String), Error> {
+fn align_motifs(sequences: Vec<String>, motifs: Vec<String>) -> Result<(isize, String), Error> {
     println!("Aligning motifs to sequences...");
-    let mut highest_score = 0;
-    let mut best_motif = String::from("");
-    for motif in motifs {
-        let mut highest_score_motif = 0;
-        for sequence in sequences {
-            let score = local_alignment_score_only(sequence, motif, 1, -5, -3)?;
-            highest_score_motif += score;
-        }
-        if highest_score_motif > highest_score {
-            highest_score = highest_score_motif;
-            best_motif = motif.to_string();
+    let mut handles = Vec::new();
+    let num_threads = 8;
+    // let motifs_arc = Arc::new(motifs);
+    // let sequences_arc = Arc::new(Mutex::new(sequences));
+
+    let chunk_size = motifs.len() / num_threads;
+    // let chunk_size = 10;
+    let mut chunks = motifs.chunks(chunk_size);
+
+    for _ in 0..num_threads {
+        let motifs_chunk = chunks.next().unwrap().to_vec();
+        let sequences = sequences.clone();
+
+        let handle = thread::spawn(move || -> Result<(isize, String), Error> {
+            let mut highest_score = 0;
+            let mut best_motif = String::new();
+            dbg!("Thread started");
+            dbg!(motifs_chunk.len());
+            for motif in motifs_chunk.iter() {
+                
+                let mut local_score = 0;
+                for sequence in &sequences {
+                    let score = local_alignment_score_only(sequence, motif, 1, -3, -3)?;
+                    local_score += score;
+                }
+                if local_score > highest_score {
+                    highest_score = local_score;
+                    best_motif = motif.to_string();
+                }
+            }
+            Ok((highest_score, best_motif))
+        });
+        
+        dbg!("Thread spawned");
+        handles.push(handle);
+    }
+    let mut highest_score_total = 0;
+    let mut best_motif_total = String::new();
+
+    for handle in handles {
+        
+        let (highest_score, best_motif) = handle.join().unwrap()?;
+        // dbg!("Thread result: {&highest_score} {&best_motif}" );
+        if highest_score > highest_score_total {
+            highest_score_total = highest_score;
+            best_motif_total = best_motif;
         }
     }
-    Ok((highest_score, best_motif))
+
+    Ok((highest_score_total, best_motif_total))
 }
 
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {

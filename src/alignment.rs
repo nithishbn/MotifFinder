@@ -141,6 +141,7 @@ pub fn local_alignment_score_only(
     mismatch: isize,
     indel: isize,
 ) -> Result<isize, Error> {
+    // dbg!("Started local alignment");
     let v_len = v.chars().count();
     let w_len = w.chars().count();
 
