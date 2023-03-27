@@ -6,6 +6,7 @@ use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
 use motif_finder::median_string::median_string;
 use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
 use motif_finder::{consensus_string, Error};
+use rayon::prelude::*;
 use std::fs::{self, File};
 use std::io::{self, Write};
 use std::str;
@@ -108,31 +109,37 @@ fn main() -> Result<(), Error> {
 
     let consensus_string = generate_consensus_string(&motifs, k)?;
     println!("Consensus string: {}", consensus_string);
+    let motifs_clone = motifs.clone();
     let (best_motif_score, best_motif) = if args.global_opts.align {
-        let (best_motif_score, best_motif) = align_motifs(&sequences, &motifs)?;
-        println!("Highest score: {}", best_motif_score);
-        println!("Best motif: {}", best_motif);
+        let top_five = align_motifs_multi_threaded(sequences, motifs)?;
+        println!("Top 5 motifs:");
+        for (score, motif) in &top_five {
+            println!("{}: {}", score, motif);
+        }
+        let (best_motif_score, best_motif) = top_five[0].clone();
         (Some(best_motif_score), Some(best_motif))
     } else {
         (None, None)
     };
-    if let Some(mut file) = file {
+    let dt_end = if let Some(mut file) = file {
         let summary = Summary {
             consensus_string,
             best_motif,
             best_motif_score,
         };
-        match output_results_to_file(&mut file, &motifs, &summary) {
-            Ok(()) => {
+        match output_results_to_file(&mut file, &motifs_clone, &summary) {
+            Ok(dt_end) => {
                 println!("Results saved to {}", file_path.ok_or(Error::IOError)?);
+                dt_end
             }
             Err(_err) => {
                 return Err(Error::IOError);
             }
         }
-    }
+    } else {
+        Utc::now()
+    };
 
-    let dt_end = Utc::now();
     println!("End at {}", dt_end.format("%Y-%m-%d %H:%M:%S"));
     if let Some(duration) = dt_end.signed_duration_since(dt).num_microseconds() {
         println!("Done in {} seconds", duration as f64 / 1_000_000.0);
@@ -141,22 +148,25 @@ fn main() -> Result<(), Error> {
     Ok(())
 }
 
-fn align_motifs(sequences: &[String], motifs: &[String]) -> Result<(isize, String), Error> {
+fn align_motifs_multi_threaded(
+    sequences: Vec<String>,
+    motifs: Vec<String>,
+) -> Result<Vec<(isize, String)>, Error> {
     println!("Aligning motifs to sequences...");
-    let mut highest_score = 0;
-    let mut best_motif = String::from("");
-    for motif in motifs {
-        let mut highest_score_motif = 0;
-        for sequence in sequences {
-            let score = local_alignment_score_only(sequence, motif, 1, -5, -3)?;
-            highest_score_motif += score;
-        }
-        if highest_score_motif > highest_score {
-            highest_score = highest_score_motif;
-            best_motif = motif.to_string();
-        }
-    }
-    Ok((highest_score, best_motif))
+    let mut top_five: Vec<(isize, String)> = motifs
+        .par_iter()
+        .map(|motif| {
+            let mut highest_score = 0;
+            for sequence in sequences.iter() {
+                highest_score += local_alignment_score_only(sequence, motif, 1, 0, -10);
+            }
+            (highest_score, motif.to_owned())
+        })
+        .collect();
+
+    top_five.par_sort_by(|a, b| b.0.cmp(&a.0));
+    top_five.dedup();
+    Ok(top_five[0..5].to_vec())
 }
 
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
@@ -270,13 +280,15 @@ fn output_results_to_file(
     file: &mut fs::File,
     motifs: &[String],
     summary: &Summary,
-) -> Result<(), Error> {
+) -> Result<DateTime<Utc>, Error> {
     let Summary {
         consensus_string,
         best_motif_score,
         best_motif,
     } = summary;
-
+    let dt_end = Utc::now();
+    writeln!(file, "End time: {}", dt_end.format("%Y-%m-%d %H:%M:%S"))
+        .map_err(|_| Error::IOError)?;
     writeln!(file, "Consensus string: {}", consensus_string).map_err(|_| Error::IOError)?;
     if let Some(best_motif) = best_motif {
         writeln!(file, "Best motif: {}", best_motif).map_err(|_| Error::IOError)?;
@@ -291,7 +303,7 @@ fn output_results_to_file(
     )
     .map_err(|_| Error::IOError)?;
     write_motifs(file, motifs)?;
-    Ok(())
+    Ok(dt_end)
 }
 fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
     for (i, motif) in motifs.iter().enumerate() {

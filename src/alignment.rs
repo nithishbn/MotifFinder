@@ -1,5 +1,5 @@
 use crate::Error;
-
+use rayon::prelude::*;
 #[derive(PartialEq, Clone, Eq, Debug)]
 pub enum Pointer {
     DOWN,
@@ -115,7 +115,7 @@ pub fn local_alignment_score_and_backtrack_matrix(
                 s[i - 1][j - 1] + matching,
                 0,
             ];
-            s[i][j] = *temp.iter().max().unwrap();
+            s[i][j] = *temp.par_iter().max().unwrap();
 
             if s[i][j] == temp[0] {
                 backtrack[i][j] = Pointer::DOWN;
@@ -140,7 +140,8 @@ pub fn local_alignment_score_only(
     match_: isize,
     mismatch: isize,
     indel: isize,
-) -> Result<isize, Error> {
+) -> isize {
+    // dbg!("Started local alignment");
     let v_len = v.chars().count();
     let w_len = w.chars().count();
 
@@ -150,22 +151,23 @@ pub fn local_alignment_score_only(
         for j in 1..=w_len {
             let v_char = v.chars().nth(i - 1);
             let w_char = w.chars().nth(j - 1);
-            let matching: isize =
-                if (v_char == w_char) && (v_char != Some('N') && w_char != Some('N')) {
-                    match_
-                } else {
-                    mismatch
-                };
+            if v_char == Some('N') && w_char == Some('N') {
+                // ignore Ns
+                s[i][j] = isize::MIN + (v_len as isize * -indel);
+
+                continue;
+            }
+            let matching: isize = if v_char == w_char { match_ } else { mismatch };
             let temp = vec![
                 s[i - 1][j] + indel,
                 s[i][j - 1] + indel,
                 s[i - 1][j - 1] + matching,
                 0,
             ];
-            s[i][j] = *temp.iter().max().unwrap();
+            s[i][j] = *temp.par_iter().max().unwrap();
         }
     }
     let (row, col) = max_of_matrix(&s);
-    let score = s[row][col];
-    Ok(score)
+
+    s[row][col]
 }
