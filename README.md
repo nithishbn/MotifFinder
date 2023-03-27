@@ -9,7 +9,8 @@ If you have the Rust toolchain installed, you can install `motif_finder` with:
 
 `cargo install motif_finder`
 
-If you do not have the Rust toolchain installed, you can install it (here)[rustup.rs]
+If you do not have the Rust toolchain installed, you can install it [here](https://www.rustup.rs).
+
 If you don't want to install it, you can also use the precompiled binaries in the releases tab on the right for your platform
 
 If your platform isn't included, you can build it for your platform by cloning this repository:
