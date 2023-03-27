@@ -3,10 +3,16 @@
 Welcome to Motif Finder!
 This is a command line utility that allows you to take a FASTA file, specify a few parameters, and (hopefully) get some motifs prevalent in the sequences.
 
-## Prerequisites
+## Installation
 
-This utility should work on all platforms if it has been compiled for it.
-If it hasn't, you can build it for your platform by cloning this repository:
+If you have the Rust toolchain installed, you can install `motif_finder` with:
+
+`cargo install motif_finder`
+
+If you do not have the Rust toolchain installed, you can install it (here)[rustup.rs]
+If you don't want to install it, you can also use the precompiled binaries in the releases tab on the right for your platform
+
+If your platform isn't included, you can build it for your platform by cloning this repository:
 
 `git clone https://github.com/nithishbn/MotifFinder.git`
 
@@ -16,7 +22,7 @@ and running
 
 in the source directory.
 This will leave an executable in the `target/release/` directory which you can then run in the command line:
-`motif_finder.exe`
+`motif_finder`
 
 ## Data format
 
@@ -36,17 +42,25 @@ You can try to find the motifs present in `promoters.fasta`, a set of 4 promoter
 
 Gibbs Sampler is an algorithm that iteratively searches for the best set of motifs in a set of sequences and throws out motifs at random until all iterations are finished.
 
-`motif_finder.exe -i promoters.fasta -e 4 -k 10 -o promotifs.txt gibbs -t 100 -r 100`
+`motif_finder -i promoters.fasta -e 4 -k 10 -o promotifs.txt gibbs -t 100 -r 100`
 
 ### Randomized Motif Search
 
 Randomized Motif Search is an algorithm that iteratively searches for the best set of motifs in a set of sequences and throws out motifs at random until the score cannot be improved anymore.
 
-`motif_finder.exe -i promoters.fasta -e 4 -k 10 -o promotifs.txt randomized -r 100`
+`motif_finder -i promoters.fasta -e 4 -k 10 -o promotifs.txt randomized -r 100`
 
 ### Median String
 
 Median String is an algorithm that checks the hamming distance from each kmer from each sequence and returns the minimized kmer from all strings. This algorithm is incredibly slow but can result in very accurate but short kmers.
 Be warned when using large k values.
 
-`motif_finder.exe -i promoters.fasta -e 4 -k 8 -o promotifs.txt median`
+`motif_finder -i promoters.fasta -e 4 -k 8 -o promotifs.txt median`
+
+### Alignment
+
+If you wish to align the motifs you've generated back to the sequences from which they were generated to identify the highest locally scored motif over all sequences, you can run the same commands as above but with the `-a` flag
+
+`motif_finder -i promoters.fasta -e 4 -k 8 -o promotifs.txt randomized -r 100`
+
+This will generate alignments for the motifs after identifying the motifs.
