@@ -153,15 +153,11 @@ fn align_motifs_multi_threaded(
         .par_iter()
         .map(|motif| {
             let mut highest_score = 0;
-            let mut best_motif = String::new();
+            
             for sequence in sequences.iter() {
-                let score = local_alignment_score_only(sequence, motif, 1, -5, -5)?;
-                if score > highest_score {
-                    highest_score = score;
-                    best_motif = motif.to_string();
-                }
+                highest_score+=local_alignment_score_only(sequence, motif, 1, 0, -10)?;
             }
-            Ok((highest_score, best_motif))
+            Ok((highest_score, motif.to_owned()))
         })
         .reduce(
             || Ok((0, String::from(""))),
