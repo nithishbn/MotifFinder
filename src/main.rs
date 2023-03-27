@@ -6,9 +6,10 @@ use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
 use motif_finder::median_string::median_string;
 use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
 use motif_finder::{consensus_string, Error};
+use rayon::prelude::*;
 use std::fs::{self, File};
 use std::io::{self, Write};
-use std::{str, thread};
+use std::str;
 /// Motif Finder
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -34,7 +35,7 @@ struct GlobalOpts {
 
     /// alignment
     #[arg(short = 'a', long = "align")]
-    align: Option<Option<usize>>,
+    align: bool,
 
     /// save motifs to file
     #[arg(short = 'o', long = "output")]
@@ -109,12 +110,9 @@ fn main() -> Result<(), Error> {
     let consensus_string = generate_consensus_string(&motifs, k)?;
     println!("Consensus string: {}", consensus_string);
     let motifs_clone = motifs.clone();
-    let (best_motif_score, best_motif) = if let Some(align) = args.global_opts.align {
-        let (best_motif_score, best_motif) = if let Some(num_threads) = align {
-            align_motifs_multi_threaded(sequences, motifs, num_threads)?
-        } else {
-            align_motifs(&sequences, &motifs)?
-        };
+    let (best_motif_score, best_motif) = if args.global_opts.align {
+        let (best_motif_score, best_motif) = align_motifs_multi_threaded(sequences, motifs)?;
+
         println!("Highest score: {}", best_motif_score);
         println!("Best motif: {}", best_motif);
         (Some(best_motif_score), Some(best_motif))
@@ -145,58 +143,39 @@ fn main() -> Result<(), Error> {
 
     Ok(())
 }
-fn align_motifs(sequences: &[String], motifs: &[String]) -> Result<(isize, String), Error> {
-    println!("Aligning motifs to sequences...");
-    let mut highest_score = 0;
-    let mut best_motif = String::from("");
-    for motif in motifs {
-        let mut highest_score_motif = 0;
-        for sequence in sequences {
-            let score = local_alignment_score_only(sequence, motif, 1, -5, -3)?;
-            highest_score_motif += score;
-        }
-        if highest_score_motif > highest_score {
-            highest_score = highest_score_motif;
-            best_motif = motif.to_string();
-        }
-    }
-    Ok((highest_score, best_motif))
-}
+
 fn align_motifs_multi_threaded(
     sequences: Vec<String>,
     motifs: Vec<String>,
-    num_threads: usize,
 ) -> Result<(isize, String), Error> {
-    println!("Aligning motifs to sequences with {num_threads} threads...");
-    let mut handles = Vec::new();
-    // let num_threads = 8;
-    let chunk_size = motifs.len() / num_threads;
-    let mut chunks = motifs.chunks(chunk_size);
-
-    for _ in 0..num_threads {
-        let motifs_chunk = chunks.next().unwrap().to_vec();
-        let sequences = sequences.clone();
-
-        let handle = thread::spawn(move || -> Result<(isize, String), Error> {
-            align_motifs(&sequences, &motifs_chunk)
-        });
-
-        dbg!("Thread spawned");
-        handles.push(handle);
-    }
-    let mut highest_score_total = 0;
-    let mut best_motif_total = String::new();
-
-    for handle in handles {
-        let (highest_score, best_motif) = handle.join().unwrap()?;
-        // dbg!("Thread result: {&highest_score} {&best_motif}" );
-        if highest_score > highest_score_total {
-            highest_score_total = highest_score;
-            best_motif_total = best_motif;
-        }
-    }
-
-    Ok((highest_score_total, best_motif_total))
+    println!("Aligning motifs to sequences...");
+    let (highest_score, highest_score_motif) = motifs
+        .par_iter()
+        .map(|motif| {
+            let mut highest_score = 0;
+            let mut best_motif = String::new();
+            for sequence in sequences.iter() {
+                let score = local_alignment_score_only(sequence, motif, 1, -5, -5)?;
+                if score > highest_score {
+                    highest_score = score;
+                    best_motif = motif.to_string();
+                }
+            }
+            Ok((highest_score, best_motif))
+        })
+        .reduce(
+            || Ok((0, String::from(""))),
+            |left, right| {
+                let (left_score, left_motif) = left?;
+                let (right_score, right_motif) = right?;
+                if left_score > right_score {
+                    Ok((left_score, left_motif))
+                } else {
+                    Ok((right_score, right_motif))
+                }
+            },
+        )?;
+    Ok((highest_score, highest_score_motif))
 }
 
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
