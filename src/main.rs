@@ -166,7 +166,10 @@ fn align_motifs_multi_threaded(
 
     top_five.par_sort_by(|a, b| b.0.cmp(&a.0));
     top_five.dedup();
-    Ok(top_five[0..5].to_vec())
+    if motifs.len() > 5 {
+        top_five.truncate(5);
+    }
+    Ok(top_five.to_vec())
 }
 
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
