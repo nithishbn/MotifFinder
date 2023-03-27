@@ -111,10 +111,12 @@ fn main() -> Result<(), Error> {
     println!("Consensus string: {}", consensus_string);
     let motifs_clone = motifs.clone();
     let (best_motif_score, best_motif) = if args.global_opts.align {
-        let (best_motif_score, best_motif) = align_motifs_multi_threaded(sequences, motifs)?;
-
-        println!("Highest score: {}", best_motif_score);
-        println!("Best motif: {}", best_motif);
+        let top_five = align_motifs_multi_threaded(sequences, motifs)?;
+        println!("Top 5 motifs:");
+        for (score, motif) in &top_five {
+            println!("{}: {}", score, motif);
+        }
+        let (best_motif_score, best_motif) = top_five[0].clone();
         (Some(best_motif_score), Some(best_motif))
     } else {
         (None, None)
@@ -147,31 +149,22 @@ fn main() -> Result<(), Error> {
 fn align_motifs_multi_threaded(
     sequences: Vec<String>,
     motifs: Vec<String>,
-) -> Result<(isize, String), Error> {
+) -> Result<Vec<(isize, String)>, Error> {
     println!("Aligning motifs to sequences...");
-    let (highest_score, highest_score_motif) = motifs
+    let mut top_five: Vec<(isize, String)> = motifs
         .par_iter()
         .map(|motif| {
             let mut highest_score = 0;
-            
             for sequence in sequences.iter() {
-                highest_score+=local_alignment_score_only(sequence, motif, 1, 0, -10)?;
+                highest_score += local_alignment_score_only(sequence, motif, 1, 0, -10);
             }
-            Ok((highest_score, motif.to_owned()))
+            (highest_score, motif.to_owned())
         })
-        .reduce(
-            || Ok((0, String::from(""))),
-            |left, right| {
-                let (left_score, left_motif) = left?;
-                let (right_score, right_motif) = right?;
-                if left_score > right_score {
-                    Ok((left_score, left_motif))
-                } else {
-                    Ok((right_score, right_motif))
-                }
-            },
-        )?;
-    Ok((highest_score, highest_score_motif))
+        .collect();
+
+    top_five.par_sort_by(|a, b| b.0.cmp(&a.0));
+    top_five.dedup();
+    Ok(top_five[0..5].to_vec())
 }
 
 fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
