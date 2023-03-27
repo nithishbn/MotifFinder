@@ -68,8 +68,10 @@ pub fn iterate_randomized_motif_search(
     println!("Starting randomized motif search with {} runs", runs);
     let mut motifs = randomized_motif_search(dna, k)?;
     let mut best_score = scoring_function(&motifs);
-    for _i in 0..runs {
-        println!("Run: {}", _i + 1);
+    for i in 1..=runs {
+        if i % 10 == 0 {
+            println!("Run {i}");
+        }
         let check = randomized_motif_search(dna, k)?;
         let check_score = scoring_function(&check);
         if check_score < best_score {

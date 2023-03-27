@@ -81,7 +81,9 @@ pub fn iterate_gibbs_sampler(
     let mut motifs = gibbs_sampler(dna, k, t, iterations)?;
     let mut best_score = scoring_function(&motifs);
     for i in 1..=runs {
-        println!("Starting run {i}",);
+        if i % 10 == 0 {
+            println!("Run {i}");
+        }
         let check = gibbs_sampler(dna, k, t, iterations)?;
         let check_score = scoring_function(&check);
         if check_score < best_score {
