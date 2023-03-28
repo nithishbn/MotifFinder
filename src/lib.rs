@@ -4,6 +4,7 @@ pub mod alignment;
 pub mod gibbs_sampler;
 pub mod median_string;
 pub mod randomized_motif_search;
+pub mod utils;
 #[derive(Debug)]
 pub enum Error {
     GenericError,
