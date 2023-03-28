@@ -5,11 +5,15 @@ use motif_finder::alignment::local_alignment_score_only;
 use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
 use motif_finder::median_string::median_string;
 use motif_finder::randomized_motif_search::iterate_randomized_motif_search;
+use motif_finder::utils::generate_vector_space_delimited;
 use motif_finder::{consensus_string, Error};
 use rayon::prelude::*;
+use std::collections::HashSet;
 use std::fs::{self, File};
+
 use std::io::{self, Write};
 use std::str;
+
 /// Motif Finder
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -73,6 +77,7 @@ enum Commands {
 }
 struct Summary {
     consensus_string: String,
+    unique_motifs: String,
     best_motif: Option<String>,
     best_motif_score: Option<isize>,
 }
@@ -107,6 +112,9 @@ fn main() -> Result<(), Error> {
         Commands::Randomized { num_runs } => run_randomized_motif_search(&sequences, k, num_runs),
     }?;
 
+    let unique_motifs =
+        generate_vector_space_delimited(unique_motifs(&motifs).into_par_iter().collect());
+    println!("Unique motifs: {}", unique_motifs);
     let consensus_string = generate_consensus_string(&motifs, k)?;
     println!("Consensus string: {}", consensus_string);
     let motifs_clone = motifs.clone();
@@ -126,6 +134,7 @@ fn main() -> Result<(), Error> {
             consensus_string,
             best_motif,
             best_motif_score,
+            unique_motifs,
         };
         match output_results_to_file(&mut file, &motifs_clone, &summary) {
             Ok(dt_end) => {
@@ -166,9 +175,8 @@ fn align_motifs_multi_threaded(
 
     top_five.par_sort_by(|a, b| b.0.cmp(&a.0));
     top_five.dedup();
-    if motifs.len() > 5 {
-        top_five.truncate(5);
-    }
+
+    top_five.truncate(5);
     Ok(top_five.to_vec())
 }
 
@@ -288,11 +296,14 @@ fn output_results_to_file(
         consensus_string,
         best_motif_score,
         best_motif,
+        unique_motifs,
     } = summary;
     let dt_end = Utc::now();
     writeln!(file, "End time: {}", dt_end.format("%Y-%m-%d %H:%M:%S"))
         .map_err(|_| Error::IOError)?;
     writeln!(file, "Consensus string: {}", consensus_string).map_err(|_| Error::IOError)?;
+
+    writeln!(file, "Unique motifs: {}", unique_motifs).map_err(|_| Error::IOError)?;
     if let Some(best_motif) = best_motif {
         writeln!(file, "Best motif: {}", best_motif).map_err(|_| Error::IOError)?;
     }
@@ -312,7 +323,11 @@ fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
     for (i, motif) in motifs.iter().enumerate() {
         let motif = motif.trim();
         writeln!(file, ">motif {}", i + 1).map_err(|_| Error::IOError)?;
-        writeln!(file, "{}", motif).map_err(|_| Error::IOError)?;
+        if i == motifs.len() - 1 {
+            write!(file, "{}", motif).map_err(|_| Error::IOError)?;
+        } else {
+            writeln!(file, "{}", motif).map_err(|_| Error::IOError)?;
+        }
     }
 
     Ok(())
@@ -327,10 +342,18 @@ fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Erro
     consensus_string(motifs, k)
 }
 
+fn unique_motifs(motifs: &[String]) -> HashSet<String> {
+    motifs.into_par_iter().cloned().collect::<HashSet<String>>()
+}
+
 #[cfg(test)]
 mod test {
+    use crate::align_motifs_multi_threaded;
+
     #[test]
     pub fn test_load_data() {
+        let sequences = super::load_data("promoters.fasta", 5).unwrap();
+        assert_eq!(sequences.len(), 4);
         let sequences = super::load_data("promoters.fasta", 4).unwrap();
         assert_eq!(sequences.len(), 4);
         let sequences = super::load_data("promoters.fasta", 3).unwrap();
@@ -341,5 +364,19 @@ mod test {
         assert_eq!(sequences.len(), 1);
         let sequences = super::load_data("promoters.fasta", 0).unwrap();
         assert_eq!(sequences.len(), 0);
+    }
+
+    #[test]
+    pub fn test_entries_less_than_five() {
+        let sequences = super::load_data("promoters.fasta", 4).unwrap();
+        let motifs = super::run_randomized_motif_search(&sequences, 8, 20).unwrap();
+        let top_five = align_motifs_multi_threaded(sequences, motifs).unwrap();
+        assert!(top_five.len() <= 4);
+        let sequences = super::load_data("promoters.fasta", 2).unwrap();
+        assert_eq!(sequences.len(), 2);
+        let motifs = super::run_randomized_motif_search(&sequences, 8, 20).unwrap();
+        assert_eq!(motifs.len(), 2);
+        let top_five = align_motifs_multi_threaded(sequences, motifs).unwrap();
+        assert!(top_five.len() <= 2);
     }
 }
