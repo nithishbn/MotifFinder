@@ -111,15 +111,14 @@ fn main() -> Result<(), Error> {
         Commands::MedianString => run_median_string(&sequences, &args),
         Commands::Randomized { num_runs } => run_randomized_motif_search(&sequences, k, num_runs),
     }?;
-
-    let unique_motifs =
-        generate_vector_space_delimited(unique_motifs(&motifs).into_par_iter().collect());
-    println!("Unique motifs: {}", unique_motifs);
+    let unique_motifs: Vec<String> = unique_motifs(&motifs).into_par_iter().collect();
+    let unique_motifs_string = generate_vector_space_delimited(&unique_motifs);
+    println!("Unique motifs: {}", unique_motifs_string);
     let consensus_string = generate_consensus_string(&motifs, k)?;
     println!("Consensus string: {}", consensus_string);
-    let motifs_clone = motifs.clone();
+
     let (best_motif_score, best_motif) = if args.global_opts.align {
-        let top_five = align_motifs_multi_threaded(sequences, motifs)?;
+        let top_five = align_motifs_multi_threaded(sequences, unique_motifs)?;
         println!("Top 5 motifs:");
         for (score, motif) in &top_five {
             println!("{}: {}", score, motif);
@@ -134,9 +133,9 @@ fn main() -> Result<(), Error> {
             consensus_string,
             best_motif,
             best_motif_score,
-            unique_motifs,
+            unique_motifs: unique_motifs_string,
         };
-        match output_results_to_file(&mut file, &motifs_clone, &summary) {
+        match output_results_to_file(&mut file, &motifs, &summary) {
             Ok(dt_end) => {
                 println!("Results saved to {}", file_path.ok_or(Error::IOError)?);
                 dt_end
@@ -167,7 +166,7 @@ fn align_motifs_multi_threaded(
         .map(|motif| {
             let mut highest_score = 0;
             for sequence in sequences.iter() {
-                highest_score += local_alignment_score_only(sequence, motif, 1, 0, -10);
+                highest_score += local_alignment_score_only(sequence, motif, 1, -10, -100);
             }
             (highest_score, motif.to_owned())
         })
