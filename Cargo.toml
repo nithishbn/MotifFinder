@@ -23,6 +23,7 @@ name = "motif_finder"
 bio = "1.1.0"
 chrono = {version="0.4.24",default-features = false, features = ["clock"]}
 clap = { version = "4.1.8", default-features = false,features = ["derive", "std", "help", "usage", "error-context", "suggestions"]}
+indicatif = "0.17.3"
 rand = "0.8.5"
 rayon = "1.7.0"
 

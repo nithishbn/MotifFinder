@@ -1,6 +1,7 @@
 use bio::io::fasta;
 use chrono::{DateTime, Utc};
 use clap::{Args, Parser, Subcommand};
+use indicatif::{ProgressBar, MultiProgress};
 use motif_finder::alignment::local_alignment_score_only;
 use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
 use motif_finder::median_string::median_string;
@@ -161,10 +162,12 @@ fn align_motifs_multi_threaded(
     motifs: Vec<String>,
 ) -> Result<Vec<(isize, String)>, Error> {
     println!("Aligning motifs to sequences...");
+    let m = ProgressBar::new(motifs.len() as u64);
     let mut top_five: Vec<(isize, String)> = motifs
         .par_iter()
         .map(|motif| {
             let mut highest_score = 0;
+            
             for sequence in sequences.iter() {
                 highest_score += local_alignment_score_only(sequence, motif, 1, -10, -100);
             }
