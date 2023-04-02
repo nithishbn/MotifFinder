@@ -1,7 +1,7 @@
 use crate::Error;
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
-use rand::{thread_rng, Rng};
 use indicatif::{ProgressBar, ProgressStyle};
+use rand::{thread_rng, Rng};
 /*
 I used "better scoring function" which is based on entropy, but I included the integer,
 sum-based scoring function as well for reference
@@ -66,19 +66,22 @@ pub fn iterate_randomized_motif_search(
     k: usize,
     runs: usize,
 ) -> Result<Vec<String>, Error> {
-    let pb = ProgressBar::new(runs.try_into().map_err(|_|Error::InvalidNumberOfRuns)?);
-    pb.println(format!("Starting randomized motif search with {} runs", runs));
-    let mut motifs = randomized_motif_search(dna, k)?;
-    let mut best_score = scoring_function(&motifs);
-    
+    let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
+    pb.println(format!(
+        "Starting randomized motif search with {} runs",
+        runs
+    ));
+
     let sty = ProgressStyle::with_template(
         "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
     )
-    
     .unwrap();
     pb.set_style(sty);
-    
     pb.reset_eta();
+    pb.set_message("Initializing");
+    let mut motifs = randomized_motif_search(dna, k)?;
+    let mut best_score = scoring_function(&motifs);
+
     for i in 1..=runs {
         pb.set_message(format!("Run #{}", i + 1));
         pb.inc(1);

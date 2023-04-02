@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::Error;
+use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 pub fn hamming_distance(string1: &str, string2: &str) -> usize {
     // scan linearly across both strings to find how many differences they have between each other
@@ -58,21 +59,28 @@ pub fn median_string(k: usize, dna: &[String]) -> Result<String, Error> {
     let mut median = String::from("");
     let len = patterns.len();
     // let mut file = fs::File::create(format!("median-string-{timestamp}-{k}-checkpoint.txt")).expect("Unable to create file");
-    for (i, pattern) in patterns.iter().enumerate() {
-        println!(
-            "processing pattern {i} of {len} in median_string",
-            i = i + 1
-        );
+    let pb = ProgressBar::new(len.try_into().map_err(|_| Error::GenericError)?);
+    pb.println(format!(
+        "Starting median string search for {k}-mers in {len} sequences",
+    ));
+
+    let sty = ProgressStyle::with_template(
+        "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
+    )
+    .unwrap();
+    pb.set_style(sty);
+    pb.reset_eta();
+    pb.set_message("Initializing");
+    for (_i, pattern) in patterns.iter().enumerate() {
+        pb.set_message(format!("Checking pattern: {pattern}"));
+        pb.inc(1);
         let pattern_distance = distance_between_pattern_and_strings(pattern, dna)?;
         if distance > pattern_distance {
             distance = pattern_distance;
             median = pattern.to_string();
         }
-        // if i % 1000 == 0{
-        //     let dt = Utc::now();
-        //     write!(file, "{dt} - processing pattern {i} of {len} in median_string\n",i=i+1).expect("Unable to write data");
-        // }
     }
+    pb.finish_with_message("Done!");
 
     Ok(median)
 }
@@ -80,13 +88,7 @@ pub fn median_string(k: usize, dna: &[String]) -> Result<String, Error> {
 pub fn distance_between_pattern_and_strings(pattern: &str, dna: &[String]) -> Result<usize, Error> {
     let k = pattern.chars().count();
     let mut distance: usize = 0;
-    for (i, seq) in dna.iter().enumerate() {
-        println!(
-            "processing distance of seq {i} of {len}",
-            i = i + 1,
-            len = dna.len()
-        );
-
+    for (_i, seq) in dna.iter().enumerate() {
         let mut hammingdist = usize::MAX;
         let seq_len = seq.chars().count();
         if k > seq_len {
