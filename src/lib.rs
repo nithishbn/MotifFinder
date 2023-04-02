@@ -3,7 +3,7 @@ mod command;
 pub mod gibbs_sampler;
 pub mod median_string;
 pub mod randomized_motif_search;
-pub mod utils;
+mod utils;
 
 use alignment::local_alignment_score_only;
 use gibbs_sampler::iterate_gibbs_sampler;
@@ -37,7 +37,7 @@ pub enum Error {
     InvalidPointerError,
     InvalidNumberofMotifs,
 }
-pub fn scoring_function(motif_matrix: &[String]) -> usize {
+fn scoring_function(motif_matrix: &[String]) -> usize {
     // given a motif matrix, generate its score by finding the highest count of nucleotide in a given position
     // and subtract that count from the total length of the column
 
@@ -61,7 +61,7 @@ pub fn scoring_function(motif_matrix: &[String]) -> usize {
     }
     score
 }
-pub fn generate_profile_given_motif_matrix(
+fn generate_profile_given_motif_matrix(
     motif_matrix: &[String],
     pseudo: bool,
 ) -> Result<Vec<Vec<f64>>, Error> {
@@ -87,7 +87,7 @@ pub fn generate_profile_given_motif_matrix(
     }
     Ok(profile_matrix)
 }
-pub fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) -> Vec<Vec<usize>> {
+fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) -> Vec<Vec<usize>> {
     // enumerate motif matrix per nucleotide per position
     let mut val = 0;
     if pseudo {
@@ -111,7 +111,7 @@ pub fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) ->
     }
     count_matrix
 }
-pub fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
+fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
     // given a kmer and a profile, generate its probability
     let mut probability = 1.0;
     for (i, nuc) in kmer.chars().enumerate() {
@@ -159,7 +159,7 @@ pub fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     Ok(consensus)
 }
 
-fn align_motifs_multi_threaded(
+pub fn align_motifs_multi_threaded(
     sequences: Vec<String>,
     motifs: Vec<String>,
 ) -> Result<Vec<(isize, String)>, Error> {
@@ -216,7 +216,7 @@ fn align_motifs_multi_threaded(
     Ok(top_five.to_vec())
 }
 
-fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
+pub fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
     println!("Loading data from '{}'...", path_to_file);
     let mut sequences = vec![];
     let file = match File::open(path_to_file) {
@@ -242,7 +242,7 @@ fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Erro
     println!("Done loading data: {} entries", sequences.len());
     Ok(sequences)
 }
-fn run_gibbs_sampler(
+pub fn run_gibbs_sampler(
     sequences: &Vec<String>,
     k: usize,
     num_runs: usize,
@@ -258,14 +258,14 @@ fn run_gibbs_sampler(
     iterate_gibbs_sampler(sequences, k, sequences.len(), num_iterations, num_runs)
 }
 
-fn run_median_string(sequences: &[String], k: usize) -> Result<Vec<String>, Error> {
+pub fn run_median_string(sequences: &[String], k: usize) -> Result<Vec<String>, Error> {
     let median_string = median_string(k, sequences)?;
     println!("median string: {}", median_string);
     let vec = vec![median_string];
     Ok(vec)
 }
 
-fn run_randomized_motif_search(
+pub fn run_randomized_motif_search(
     sequences: &[String],
     k: usize,
     num_runs: usize,
@@ -276,7 +276,7 @@ fn run_randomized_motif_search(
     iterate_randomized_motif_search(sequences, k, num_runs)
 }
 
-fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
+pub fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     if motifs.is_empty() {
         return Err(Error::NoMotifsFound);
     } else if motifs.len() == 1 {
@@ -285,7 +285,7 @@ fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Erro
     consensus_string(motifs, k)
 }
 
-fn unique_motifs(motifs: &[String]) -> HashSet<String> {
+pub fn unique_motifs(motifs: &[String]) -> HashSet<String> {
     motifs.into_par_iter().cloned().collect::<HashSet<String>>()
 }
 
