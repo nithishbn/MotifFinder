@@ -1,10 +1,26 @@
-use std::collections::HashMap;
-
 pub mod alignment;
+mod command;
 pub mod gibbs_sampler;
 pub mod median_string;
 pub mod randomized_motif_search;
 pub mod utils;
+
+use alignment::local_alignment_score_only;
+use gibbs_sampler::iterate_gibbs_sampler;
+use median_string::median_string;
+
+use indicatif::{MultiProgress, ParallelProgressIterator, ProgressBar, ProgressStyle};
+use randomized_motif_search::iterate_randomized_motif_search;
+use rayon::prelude::*;
+use std::str;
+use std::{
+    collections::{HashMap, HashSet},
+    fs::File,
+};
+
+use bio::io::fasta;
+#[doc(hidden)]
+pub use command::MotifFinder;
 #[derive(Debug)]
 pub enum Error {
     GenericError,
@@ -141,4 +157,169 @@ pub fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
         consensus.push(nuc);
     }
     Ok(consensus)
+}
+
+fn align_motifs_multi_threaded(
+    sequences: Vec<String>,
+    motifs: Vec<String>,
+) -> Result<Vec<(isize, String)>, Error> {
+    let motifs_len = motifs.len();
+    let sequences_len = sequences.len();
+    let pb = ProgressBar::new(
+        motifs_len
+            .try_into()
+            .map_err(|_| Error::InvalidNumberofMotifs)?,
+    );
+    let sty =
+        ProgressStyle::with_template(&format!("{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}} ", "9.on_0"))
+            .unwrap()
+            .progress_chars("█▉▊▋▌▍▎▏  ");
+    pb.set_style(
+        ProgressStyle::with_template(
+            "[{elapsed_precise}] {spinner:.9.on_0} {bar:50.9.on_0} {pos:>2}/{len:2} {msg} ({eta})",
+        )
+        .unwrap(),
+    );
+    pb.reset_eta();
+
+    let m = MultiProgress::new();
+
+    let total_pb = m.add(pb);
+    total_pb.println(format!(
+        "Aligning {} unique motifs to {} sequences",
+        motifs_len,
+        sequences.len()
+    ));
+
+    let mut top_five: Vec<(isize, String)> = motifs
+        .par_iter()
+        .progress_with(total_pb.clone())
+        .map(|motif| {
+            let inner = m.add(ProgressBar::new(sequences_len.try_into().unwrap()));
+            inner.set_style(sty.clone());
+
+            inner.set_prefix(motif.to_string());
+            let mut highest_score = 0;
+            for sequence in sequences.iter() {
+                highest_score += local_alignment_score_only(sequence, motif, 1, -10, -100);
+                inner.inc(1);
+            }
+            inner.finish_and_clear();
+
+            (highest_score, motif.to_owned())
+        })
+        .collect();
+    total_pb.finish_with_message("Done!");
+    top_five.par_sort_by(|a, b| b.0.cmp(&a.0));
+    top_five.dedup();
+    top_five.truncate(5);
+    Ok(top_five.to_vec())
+}
+
+fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
+    println!("Loading data from '{}'...", path_to_file);
+    let mut sequences = vec![];
+    let file = match File::open(path_to_file) {
+        Ok(file) => file,
+        Err(_) => return Err(Error::FileNotFoundError),
+    };
+    let mut records = fasta::Reader::new(file).records();
+    let mut count = 0;
+    while let Some(Ok(record)) = records.next() {
+        count += 1;
+        if count > num_entries {
+            break;
+        }
+        let s = match str::from_utf8(record.seq()) {
+            Ok(v) => v,
+            Err(_e) => return Err(Error::InvalidSequence),
+        }
+        .to_string()
+        .to_uppercase();
+
+        sequences.push(s);
+    }
+    println!("Done loading data: {} entries", sequences.len());
+    Ok(sequences)
+}
+fn run_gibbs_sampler(
+    sequences: &Vec<String>,
+    k: usize,
+    num_runs: usize,
+    num_iterations: usize,
+) -> Result<Vec<String>, Error> {
+    if num_runs == 0 {
+        return Err(Error::InvalidNumberOfRuns);
+    }
+    if num_iterations == 0 {
+        return Err(Error::InvalidNumberOfIterations);
+    }
+
+    iterate_gibbs_sampler(sequences, k, sequences.len(), num_iterations, num_runs)
+}
+
+fn run_median_string(sequences: &[String], k: usize) -> Result<Vec<String>, Error> {
+    let median_string = median_string(k, sequences)?;
+    println!("median string: {}", median_string);
+    let vec = vec![median_string];
+    Ok(vec)
+}
+
+fn run_randomized_motif_search(
+    sequences: &[String],
+    k: usize,
+    num_runs: usize,
+) -> Result<Vec<String>, Error> {
+    if num_runs == 0 {
+        return Err(Error::InvalidNumberOfRuns);
+    }
+    iterate_randomized_motif_search(sequences, k, num_runs)
+}
+
+fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
+    if motifs.is_empty() {
+        return Err(Error::NoMotifsFound);
+    } else if motifs.len() == 1 {
+        return Ok(motifs[0].clone());
+    }
+    consensus_string(motifs, k)
+}
+
+fn unique_motifs(motifs: &[String]) -> HashSet<String> {
+    motifs.into_par_iter().cloned().collect::<HashSet<String>>()
+}
+
+#[cfg(test)]
+mod test {
+    use crate::align_motifs_multi_threaded;
+
+    #[test]
+    pub fn test_load_data() {
+        let sequences = super::load_data("promoters.fasta", 5).unwrap();
+        assert_eq!(sequences.len(), 4);
+        let sequences = super::load_data("promoters.fasta", 4).unwrap();
+        assert_eq!(sequences.len(), 4);
+        let sequences = super::load_data("promoters.fasta", 3).unwrap();
+        assert_eq!(sequences.len(), 3);
+        let sequences = super::load_data("promoters.fasta", 2).unwrap();
+        assert_eq!(sequences.len(), 2);
+        let sequences = super::load_data("promoters.fasta", 1).unwrap();
+        assert_eq!(sequences.len(), 1);
+        let sequences = super::load_data("promoters.fasta", 0).unwrap();
+        assert_eq!(sequences.len(), 0);
+    }
+
+    #[test]
+    pub fn test_entries_less_than_five() {
+        let sequences = super::load_data("promoters.fasta", 4).unwrap();
+        let motifs = super::run_randomized_motif_search(&sequences, 8, 20).unwrap();
+        let top_five = align_motifs_multi_threaded(sequences, motifs).unwrap();
+        assert!(top_five.len() <= 4);
+        let sequences = super::load_data("promoters.fasta", 2).unwrap();
+        assert_eq!(sequences.len(), 2);
+        let motifs = super::run_randomized_motif_search(&sequences, 8, 20).unwrap();
+        assert_eq!(motifs.len(), 2);
+        let top_five = align_motifs_multi_threaded(sequences, motifs).unwrap();
+        assert!(top_five.len() <= 2);
+    }
 }

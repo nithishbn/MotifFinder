@@ -1,6 +1,6 @@
 [package]
 name = "motif_finder"
-version = "0.5.1"
+version = "0.5.2"
 edition = "2021"
 authors = ["Nithish Narasimman <me@nithishbn.com>"]
 license = "GPL-3.0-only"
@@ -16,7 +16,7 @@ abi = "wasi"
 path="src/lib.rs"
 
 [[bin]]
-path = "src/main.rs"
+path = "src/bin/motif_finder.rs"
 name = "motif_finder"
 
 [dependencies]

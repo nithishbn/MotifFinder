@@ -71,7 +71,6 @@ pub fn iterate_randomized_motif_search(
         "Starting randomized motif search with {} runs",
         runs
     ));
-
     let sty = ProgressStyle::with_template(
         "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
     )
@@ -82,16 +81,16 @@ pub fn iterate_randomized_motif_search(
     let mut motifs = randomized_motif_search(dna, k)?;
     let mut best_score = scoring_function(&motifs);
 
-    for i in 1..=runs {
-        pb.set_message(format!("Run #{}", i + 1));
-        pb.inc(1);
+    for _i in 1..=runs {
+        pb.set_message(format!("Score so far {best_score}"));
         let check = randomized_motif_search(dna, k)?;
         let check_score = scoring_function(&check);
+        pb.inc(1);
         if check_score < best_score {
             motifs = check;
             best_score = check_score;
         }
     }
-    pb.finish_with_message("Done!");
+    pb.finish_with_message(format!("Done! Best score: {best_score}"));
     Ok(motifs)
 }

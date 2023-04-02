@@ -81,7 +81,7 @@ pub fn iterate_gibbs_sampler(
     println!("initializing gibbs sampler");
     let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
     let sty = ProgressStyle::with_template(
-        "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
+        "[{elapsed_precise}] {spinner:.9.on_0} {bar:50.9.on_0} {pos:>3}/{len:3} {msg} ({eta})",
     )
     .unwrap();
     pb.set_style(sty);
@@ -91,16 +91,16 @@ pub fn iterate_gibbs_sampler(
     ));
     let mut motifs = gibbs_sampler(dna, k, t, iterations)?;
     let mut best_score = scoring_function(&motifs);
-    for i in 1..=runs {
-        pb.set_message(format!("Run #{}", i + 1));
-        pb.inc(1);
+    for _i in 1..=runs {
+        pb.set_message(format!("Score so far {best_score}"));
         let check = gibbs_sampler(dna, k, t, iterations)?;
         let check_score = scoring_function(&check);
+        pb.inc(1);
         if check_score < best_score {
             motifs = check;
             best_score = check_score;
         }
     }
-    pb.finish_with_message("Done!");
+    pb.finish_with_message(format!("Done! Best score: {best_score}"));
     Ok(motifs)
 }
