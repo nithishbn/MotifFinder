@@ -1,5 +1,6 @@
 use crate::Error;
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
+use indicatif::{ProgressBar, ProgressStyle};
 use rand::{thread_rng, Rng};
 /*
 I used "better scoring function" which is based on entropy, but I included the integer,
@@ -35,7 +36,7 @@ pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) ->
     // given a profile, and a DNA string, check all kmers to see which one is the most probable
     let text_len = text.chars().count();
     let mut best_probability_so_far = -1.0;
-    let dummy = String::from("");
+    let dummy = "";
     let mut best_kmer = dummy;
 
     for i in 0..(text_len - k + 1) {
@@ -45,12 +46,12 @@ pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) ->
         let kmer = &text[i..i + k];
         let kmer_prob = generate_probability(kmer, profile);
         if kmer_prob > best_probability_so_far {
-            best_kmer = kmer.to_string();
+            best_kmer = kmer;
             best_probability_so_far = kmer_prob;
         }
     }
 
-    best_kmer
+    best_kmer.to_owned()
 }
 
 pub fn generate_motifs_from_profile(profile: &[Vec<f64>], dna: &[String], k: usize) -> Vec<String> {
@@ -65,13 +66,25 @@ pub fn iterate_randomized_motif_search(
     k: usize,
     runs: usize,
 ) -> Result<Vec<String>, Error> {
-    println!("Starting randomized motif search with {} runs", runs);
+    let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
+    pb.println(format!(
+        "Starting randomized motif search with {} runs",
+        runs
+    ));
+
+    let sty = ProgressStyle::with_template(
+        "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
+    )
+    .unwrap();
+    pb.set_style(sty);
+    pb.reset_eta();
+    pb.set_message("Initializing");
     let mut motifs = randomized_motif_search(dna, k)?;
     let mut best_score = scoring_function(&motifs);
+
     for i in 1..=runs {
-        if i % 10 == 0 {
-            println!("Run {i}");
-        }
+        pb.set_message(format!("Run #{}", i + 1));
+        pb.inc(1);
         let check = randomized_motif_search(dna, k)?;
         let check_score = scoring_function(&check);
         if check_score < best_score {
@@ -79,6 +92,6 @@ pub fn iterate_randomized_motif_search(
             best_score = check_score;
         }
     }
-
+    pb.finish_with_message("Done!");
     Ok(motifs)
 }

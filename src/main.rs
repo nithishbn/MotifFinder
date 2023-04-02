@@ -1,6 +1,7 @@
 use bio::io::fasta;
 use chrono::{DateTime, Utc};
 use clap::{Args, Parser, Subcommand};
+use indicatif::{MultiProgress, ParallelProgressIterator, ProgressBar, ProgressStyle};
 use motif_finder::alignment::local_alignment_score_only;
 use motif_finder::gibbs_sampler::iterate_gibbs_sampler;
 use motif_finder::median_string::median_string;
@@ -160,21 +161,51 @@ fn align_motifs_multi_threaded(
     sequences: Vec<String>,
     motifs: Vec<String>,
 ) -> Result<Vec<(isize, String)>, Error> {
-    println!("Aligning motifs to sequences...");
+    let motifs_len = motifs.len();
+    let sequences_len = sequences.len();
+    let pb = ProgressBar::new(
+        motifs_len
+            .try_into()
+            .map_err(|_| Error::InvalidNumberofMotifs)?,
+    );
+    pb.set_style(ProgressStyle::with_template(
+        "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
+    )
+    .unwrap()
+);
+    pb.reset_eta();
+
+    let m = MultiProgress::new();
+    let sty = ProgressStyle::with_template(
+        "[{elapsed_precise}] {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
+    )
+    .unwrap()
+    .progress_chars("##-");
+    let total_pb = m.add(pb);
+    total_pb.println(format!(
+        "Aligning {} unique motifs to {} sequences",
+        motifs_len,
+        sequences.len()
+    ));
     let mut top_five: Vec<(isize, String)> = motifs
         .par_iter()
+        .progress_with(total_pb.clone())
         .map(|motif| {
+            let inner = m.add(ProgressBar::new(sequences_len.try_into().unwrap()));
+            inner.set_style(sty.clone());
+            inner.set_message(motif.to_string());
             let mut highest_score = 0;
             for sequence in sequences.iter() {
                 highest_score += local_alignment_score_only(sequence, motif, 1, -10, -100);
+                inner.inc(1);
             }
+            inner.finish_and_clear();
             (highest_score, motif.to_owned())
         })
         .collect();
-
+    total_pb.finish_with_message("Done!");
     top_five.par_sort_by(|a, b| b.0.cmp(&a.0));
     top_five.dedup();
-
     top_five.truncate(5);
     Ok(top_five.to_vec())
 }

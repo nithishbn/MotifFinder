@@ -1,5 +1,6 @@
 use crate::Error;
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
+use indicatif::{ProgressBar, ProgressStyle};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use rayon::prelude::*;
@@ -78,12 +79,21 @@ pub fn iterate_gibbs_sampler(
 ) -> Result<Vec<String>, Error> {
     // gibbs but iterate
     println!("initializing gibbs sampler");
+    let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
+    let sty = ProgressStyle::with_template(
+        "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
+    )
+    .unwrap();
+    pb.set_style(sty);
+    pb.reset_eta();
+    pb.println(format!(
+        "Starting Gibbs Sampler with {runs} runs and {iterations} iterations"
+    ));
     let mut motifs = gibbs_sampler(dna, k, t, iterations)?;
     let mut best_score = scoring_function(&motifs);
     for i in 1..=runs {
-        if i % 10 == 0 {
-            println!("Run {i}");
-        }
+        pb.set_message(format!("Run #{}", i + 1));
+        pb.inc(1);
         let check = gibbs_sampler(dna, k, t, iterations)?;
         let check_score = scoring_function(&check);
         if check_score < best_score {
@@ -91,6 +101,6 @@ pub fn iterate_gibbs_sampler(
             best_score = check_score;
         }
     }
-
+    pb.finish_with_message("Done!");
     Ok(motifs)
 }
