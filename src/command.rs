@@ -10,6 +10,7 @@ use crate::{
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use rayon::prelude::*;
+use tracing::info;
 /// Motif Finder
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -24,7 +25,7 @@ impl MotifFinder {
     pub fn exec(mut self) -> Result<(), Error> {
         let dt = Utc::now();
         let start_time: i64 = dt.timestamp_micros();
-        println!("start at {}", dt.format("%Y-%m-%d %H:%M:%S"));
+        info!("Welcome to MotifFinder!");
         let sequences = load_data(&self.global_opts.input_file, self.global_opts.num_entries)?;
         self.global_opts.num_entries = sequences.len();
         let GlobalOpts { k, .. } = self.global_opts;
@@ -60,15 +61,15 @@ impl MotifFinder {
         }?;
         let unique_motifs: Vec<String> = unique_motifs(&motifs).into_par_iter().collect();
         let unique_motifs_string = generate_vector_space_delimited(&unique_motifs);
-        println!("Unique motifs: {}", unique_motifs_string);
+        info!("Unique motifs: {}", unique_motifs_string);
         let consensus_string = generate_consensus_string(&motifs, k)?;
-        println!("Consensus string: {}", consensus_string);
+        info!("Consensus string: {}", consensus_string);
 
         let (best_motif_score, best_motif) = if self.global_opts.align {
             let top_five = align_motifs_multi_threaded(sequences, unique_motifs)?;
-            println!("Top 5 motifs:");
+            info!("Top 5 motifs:");
             for (score, motif) in &top_five {
-                println!("{}: {}", score, motif);
+                info!("{}: {}", score, motif);
             }
             let (best_motif_score, best_motif) = top_five[0].clone();
             (Some(best_motif_score), Some(best_motif))
@@ -84,7 +85,7 @@ impl MotifFinder {
             };
             match output_results_to_file(&mut file, &motifs, &summary) {
                 Ok(dt_end) => {
-                    println!("Results saved to {}", file_path.ok_or(Error::IOError)?);
+                    info!("Results saved to {}", file_path.ok_or(Error::IOError)?);
                     dt_end
                 }
                 Err(_err) => {
@@ -95,9 +96,8 @@ impl MotifFinder {
             Utc::now()
         };
 
-        println!("End at {}", dt_end.format("%Y-%m-%d %H:%M:%S"));
         if let Some(duration) = dt_end.signed_duration_since(dt).num_microseconds() {
-            println!("Done in {} seconds", duration as f64 / 1_000_000.0);
+            info!("Done in {} seconds", duration as f64 / 1_000_000.0);
         }
         Ok(())
     }
@@ -123,6 +123,10 @@ struct GlobalOpts {
     /// save motifs to file
     #[arg(short = 'o', long = "output")]
     output_file: Option<Option<String>>,
+
+    /// verbose
+    #[arg(short = 'v', long = "verbose", default_value_t, global = true)]
+    verbose: bool,
 }
 
 #[derive(Subcommand)]

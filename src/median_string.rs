@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use crate::Error;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
+use tracing::{trace, warn};
 pub fn hamming_distance(string1: &str, string2: &str) -> usize {
+    trace!("Hamming distance between {} and {}", string1, string2);
     // scan linearly across both strings to find how many differences they have between each other
     let length = string1.chars().count();
     let mut distance = 0;
@@ -17,6 +19,7 @@ pub fn hamming_distance(string1: &str, string2: &str) -> usize {
     distance
 }
 pub fn neighbors(pattern: String, d: usize) -> HashSet<String> {
+    trace!("Generating neighbors of {} with distance {}", pattern, d);
     // generate all neighbors of length |pattern| by modifying at most d nucleotides
     if d == 0 {
         let pattern_set: HashSet<String> = vec![pattern].into_par_iter().collect();
@@ -52,18 +55,18 @@ pub fn neighbors(pattern: String, d: usize) -> HashSet<String> {
     }
     neighborhood
 }
+#[tracing::instrument]
 pub fn median_string(k: usize, dna: &[String]) -> Result<String, Error> {
+    trace!("Finding median string of length {} in {:?}", k, dna);
     let mut distance = usize::MAX;
     let dummy_string = "A".repeat(k);
     let patterns = neighbors(dummy_string, k);
     let mut median = String::from("");
     let len = patterns.len();
-    // let mut file = fs::File::create(format!("median-string-{timestamp}-{k}-checkpoint.txt")).expect("Unable to create file");
     let pb = ProgressBar::new(len.try_into().map_err(|_| Error::GenericError)?);
     pb.println(format!(
         "Starting median string search for {k}-mers in {len} sequences",
     ));
-
     let sty = ProgressStyle::with_template(
         "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
     )
@@ -92,6 +95,7 @@ pub fn distance_between_pattern_and_strings(pattern: &str, dna: &[String]) -> Re
         let mut hammingdist = usize::MAX;
         let seq_len = seq.chars().count();
         if k > seq_len {
+            warn!("Pattern length is greater than sequence length, skipping sequence");
             continue;
         }
         for i in 0..seq_len - k + 1 {

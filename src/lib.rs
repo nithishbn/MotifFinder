@@ -5,7 +5,7 @@ pub mod median_string;
 pub mod randomized_motif_search;
 mod utils;
 
-use alignment::local_alignment_score_only;
+use alignment::local_alignment;
 use gibbs_sampler::iterate_gibbs_sampler;
 use median_string::median_string;
 
@@ -17,6 +17,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs::File,
 };
+use tracing::info;
 
 use bio::io::fasta;
 #[doc(hidden)]
@@ -25,7 +26,7 @@ pub use command::MotifFinder;
 pub enum Error {
     GenericError,
     IOError,
-    FileNotFoundError,
+    FileNotFoundError(String),
     InvalidInputError,
     InvalidNucleotideError,
     InvalidKmerLength,
@@ -159,6 +160,7 @@ pub fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     Ok(consensus)
 }
 
+#[tracing::instrument]
 pub fn align_motifs_multi_threaded(
     sequences: Vec<String>,
     motifs: Vec<String>,
@@ -197,18 +199,24 @@ pub fn align_motifs_multi_threaded(
         .map(|motif| {
             let inner = m.add(ProgressBar::new(sequences_len.try_into().unwrap()));
             inner.set_style(sty.clone());
-
             inner.set_prefix(motif.to_string());
+            let mut total_score = 0;
             let mut highest_score = 0;
+            let mut best_motif = String::from("");
             for sequence in sequences.iter() {
-                highest_score += local_alignment_score_only(sequence, motif, 1, -10, -100);
+                let (score, _v_align, w_align) = local_alignment(sequence, motif, 1, -10, -100)?;
+                if score > highest_score {
+                    highest_score = score;
+                    best_motif = w_align;
+                }
+                total_score += score;
                 inner.inc(1);
             }
             inner.finish_and_clear();
-
-            (highest_score, motif.to_owned())
+            Ok((total_score, best_motif))
         })
-        .collect();
+        .collect::<Result<Vec<(isize, String)>, Error>>()?;
+
     total_pb.finish_with_message("Done!");
     top_five.par_sort_by(|a, b| b.0.cmp(&a.0));
     top_five.dedup();
@@ -216,12 +224,13 @@ pub fn align_motifs_multi_threaded(
     Ok(top_five.to_vec())
 }
 
+#[tracing::instrument]
 pub fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
-    println!("Loading data from '{}'...", path_to_file);
+    info!("Loading data from '{}'...", path_to_file);
     let mut sequences = vec![];
     let file = match File::open(path_to_file) {
         Ok(file) => file,
-        Err(_) => return Err(Error::FileNotFoundError),
+        Err(_) => return Err(Error::FileNotFoundError(path_to_file.to_string())),
     };
     let mut records = fasta::Reader::new(file).records();
     let mut count = 0;
@@ -239,7 +248,7 @@ pub fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, 
 
         sequences.push(s);
     }
-    println!("Done loading data: {} entries", sequences.len());
+    info!("Done loading data: {} entries", sequences.len());
     Ok(sequences)
 }
 pub fn run_gibbs_sampler(
@@ -260,7 +269,7 @@ pub fn run_gibbs_sampler(
 
 pub fn run_median_string(sequences: &[String], k: usize) -> Result<Vec<String>, Error> {
     let median_string = median_string(k, sequences)?;
-    println!("median string: {}", median_string);
+    info!("Median string: {}", median_string);
     let vec = vec![median_string];
     Ok(vec)
 }
