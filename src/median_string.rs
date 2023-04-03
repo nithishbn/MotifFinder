@@ -4,7 +4,8 @@ use crate::Error;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use tracing::{trace, warn};
-pub fn hamming_distance(string1: &str, string2: &str) -> usize {
+#[tracing::instrument]
+fn hamming_distance(string1: &str, string2: &str) -> usize {
     trace!("Hamming distance between {} and {}", string1, string2);
     // scan linearly across both strings to find how many differences they have between each other
     let length = string1.chars().count();
@@ -18,7 +19,8 @@ pub fn hamming_distance(string1: &str, string2: &str) -> usize {
     }
     distance
 }
-pub fn neighbors(pattern: String, d: usize) -> HashSet<String> {
+#[tracing::instrument]
+fn neighbors(pattern: String, d: usize) -> HashSet<String> {
     trace!("Generating neighbors of {} with distance {}", pattern, d);
     // generate all neighbors of length |pattern| by modifying at most d nucleotides
     if d == 0 {
@@ -88,7 +90,8 @@ pub fn median_string(k: usize, dna: &[String]) -> Result<String, Error> {
     Ok(median)
 }
 
-pub fn distance_between_pattern_and_strings(pattern: &str, dna: &[String]) -> Result<usize, Error> {
+#[tracing::instrument]
+fn distance_between_pattern_and_strings(pattern: &str, dna: &[String]) -> Result<usize, Error> {
     let k = pattern.chars().count();
     let mut distance: usize = 0;
     for (_i, seq) in dna.iter().enumerate() {

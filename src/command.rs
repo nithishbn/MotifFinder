@@ -9,16 +9,19 @@ use crate::{
 };
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
+use clap_verbosity_flag::InfoLevel;
 use rayon::prelude::*;
-use tracing::info;
+use tracing::{error, info, trace};
 /// Motif Finder
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct MotifFinder {
     #[clap(flatten)]
     global_opts: GlobalOpts,
     #[command(subcommand)]
     pub command: Commands,
+    #[clap(flatten)]
+    pub verbose: clap_verbosity_flag::Verbosity<InfoLevel>,
 }
 
 impl MotifFinder {
@@ -41,7 +44,9 @@ impl MotifFinder {
                 &self.command,
                 dt,
             ) {
-                Ok(()) => {}
+                Ok(()) => {
+                    trace!("Wrote file header to {}", file_path);
+                }
                 Err(_err) => return Err(Error::IOError),
             }
             (Some(file), Some(file_path))
@@ -89,6 +94,10 @@ impl MotifFinder {
                     dt_end
                 }
                 Err(_err) => {
+                    error!(
+                        "Error writing to file: {}",
+                        file_path.ok_or(Error::IOError)?
+                    );
                     return Err(Error::IOError);
                 }
             }
@@ -124,12 +133,10 @@ struct GlobalOpts {
     #[arg(short = 'o', long = "output")]
     output_file: Option<Option<String>>,
 
-    /// verbose
-    #[arg(short = 'v', long = "verbose", default_value_t, global = true)]
-    verbose: bool,
+    
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Commands {
     #[clap(name = "gibbs", about = "Run the Gibbs Sampler algorithm")]
     GibbsSampler {

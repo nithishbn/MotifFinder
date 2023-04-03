@@ -4,6 +4,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use rayon::prelude::*;
+use tracing::{info, trace};
 pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>, Error> {
     // similar to randomized motif search but at every step we randomly remove one motif from the motifs list
     // we add this back in the form of the profile randomly generated kmer for that profile
@@ -23,9 +24,10 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec
     // println!("{} {}",best_motifs.len(),t);
     let mut best_score = scoring_function(&best_motifs);
     for _j in 0..n {
-        // println!("in loop {_j}");
+        trace!("Gibbs Sampler iteration: {}", _j);
         let mut motifs = best_motifs.clone();
         let i = thread_rng().gen_range(0..t);
+        trace!("Removing {}th motif", i);
         motifs.remove(i);
         let profile = generate_profile_given_motif_matrix(&best_motifs, true)?;
         if let Some(motif_i) = profile_randomly_generated_kmer(&dna[i], k, &profile) {
@@ -70,6 +72,7 @@ pub fn profile_randomly_generated_kmer(
     }
     None
 }
+#[tracing::instrument]
 pub fn iterate_gibbs_sampler(
     dna: &[String],
     k: usize,
@@ -78,7 +81,7 @@ pub fn iterate_gibbs_sampler(
     runs: usize,
 ) -> Result<Vec<String>, Error> {
     // gibbs but iterate
-    println!("initializing gibbs sampler");
+    info!("Initializing Gibbs Sampler");
     let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
     let sty = ProgressStyle::with_template(
         "[{elapsed_precise}] {spinner:.9.on_0} {bar:50.9.on_0} {pos:>3}/{len:3} {msg} ({eta})",

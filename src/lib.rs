@@ -17,7 +17,7 @@ use std::{
     collections::{HashMap, HashSet},
     fs::File,
 };
-use tracing::info;
+use tracing::{error, info};
 
 use bio::io::fasta;
 #[doc(hidden)]
@@ -38,6 +38,7 @@ pub enum Error {
     InvalidPointerError,
     InvalidNumberofMotifs,
 }
+#[tracing::instrument]
 fn scoring_function(motif_matrix: &[String]) -> usize {
     // given a motif matrix, generate its score by finding the highest count of nucleotide in a given position
     // and subtract that count from the total length of the column
@@ -62,6 +63,7 @@ fn scoring_function(motif_matrix: &[String]) -> usize {
     }
     score
 }
+#[tracing::instrument]
 fn generate_profile_given_motif_matrix(
     motif_matrix: &[String],
     pseudo: bool,
@@ -80,6 +82,7 @@ fn generate_profile_given_motif_matrix(
             if let Some(row) = profile_matrix.get_mut(j) {
                 row[i] = (*count_matrix.get(j).unwrap().get(i).unwrap()) as f64 / sum;
             } else {
+                error!("Invalid index for profile matrix");
                 return Err(Error::InvalidInputError);
             }
 
@@ -88,6 +91,7 @@ fn generate_profile_given_motif_matrix(
     }
     Ok(profile_matrix)
 }
+#[tracing::instrument]
 fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) -> Vec<Vec<usize>> {
     // enumerate motif matrix per nucleotide per position
     let mut val = 0;
@@ -112,6 +116,7 @@ fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) -> Vec
     }
     count_matrix
 }
+#[tracing::instrument]
 fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
     // given a kmer and a profile, generate its probability
     let mut probability = 1.0;
@@ -131,8 +136,8 @@ fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
     }
     probability
 }
-
-pub fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
+#[tracing::instrument]
+fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     let mut consensus = String::new();
     let count_matrix = generate_count_matrix(motifs, k, true);
     for i in 0..k {
@@ -251,6 +256,7 @@ pub fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, 
     info!("Done loading data: {} entries", sequences.len());
     Ok(sequences)
 }
+#[tracing::instrument]
 pub fn run_gibbs_sampler(
     sequences: &Vec<String>,
     k: usize,
@@ -266,14 +272,14 @@ pub fn run_gibbs_sampler(
 
     iterate_gibbs_sampler(sequences, k, sequences.len(), num_iterations, num_runs)
 }
-
+#[tracing::instrument]
 pub fn run_median_string(sequences: &[String], k: usize) -> Result<Vec<String>, Error> {
     let median_string = median_string(k, sequences)?;
     info!("Median string: {}", median_string);
     let vec = vec![median_string];
     Ok(vec)
 }
-
+#[tracing::instrument]
 pub fn run_randomized_motif_search(
     sequences: &[String],
     k: usize,
@@ -284,7 +290,7 @@ pub fn run_randomized_motif_search(
     }
     iterate_randomized_motif_search(sequences, k, num_runs)
 }
-
+#[tracing::instrument]
 pub fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     if motifs.is_empty() {
         return Err(Error::NoMotifsFound);
@@ -293,7 +299,7 @@ pub fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, 
     }
     consensus_string(motifs, k)
 }
-
+#[tracing::instrument]
 pub fn unique_motifs(motifs: &[String]) -> HashSet<String> {
     motifs.into_par_iter().cloned().collect::<HashSet<String>>()
 }
