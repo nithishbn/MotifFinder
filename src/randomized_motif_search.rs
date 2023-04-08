@@ -1,6 +1,6 @@
 use crate::Error;
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
-use indicatif::{ProgressBar, ProgressStyle, MultiProgress, ParallelProgressIterator};
+use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::{thread_rng, Rng};
 use rayon::prelude::*;
 use tracing::trace;
@@ -68,7 +68,7 @@ pub fn iterate_randomized_motif_search(
 ) -> Result<Vec<String>, Error> {
     let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
     trace!("Started randomized motif search");
-    let m = MultiProgress::new();
+
     pb.println(format!(
         "Starting randomized motif search with {} runs",
         runs
@@ -81,21 +81,24 @@ pub fn iterate_randomized_motif_search(
     pb.reset_eta();
     pb.set_message("Initializing");
 
-    let mut result: Vec<(usize,Vec<String>)> = (1..=runs).into_par_iter().progress_with(total_pb.clone()).map(|_i| {
+    let mut result: Vec<(usize, Vec<String>)> = (1..=runs)
+        .into_par_iter()
+        .progress_with(pb.clone())
+        .map(|_i| {
+            let mut motifs = randomized_motif_search(dna, k)?;
+            let mut best_score = scoring_function(&motifs);
+            // pb.set_message(format!("Score so far {best_score}"));
+            let check = randomized_motif_search(dna, k)?;
+            let check_score = scoring_function(&check);
+            // pb.inc(1);
+            if check_score < best_score {
+                motifs = check;
+                best_score = check_score;
+            }
 
-        let mut motifs = randomized_motif_search(dna, k)?;
-        let mut best_score = scoring_function(&motifs);
-        // pb.set_message(format!("Score so far {best_score}"));
-        let check = randomized_motif_search(dna, k)?;
-        let check_score = scoring_function(&check);
-        // pb.inc(1);
-        if check_score < best_score {
-            motifs = check;
-            best_score = check_score;
-        }
-        
-        Ok((best_score,motifs))
-    }).collect::<Result<Vec<(usize,Vec<String>)>,Error>>()?;
+            Ok((best_score, motifs))
+        })
+        .collect::<Result<Vec<(usize, Vec<String>)>, Error>>()?;
     result.par_sort_by(|a, b| b.0.cmp(&a.0));
     dbg!(&result);
     let motifs = result[0].1.clone();

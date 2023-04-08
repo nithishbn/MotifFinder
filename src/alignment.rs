@@ -154,10 +154,7 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
             );
             println!("{}", sequence.len());
 
-            println!(
-                "{}",
-                aln.pretty(pattern.as_ref(), sequence.as_ref())
-            );
+            println!("{}", aln.pretty(pattern.as_ref(), sequence.as_ref()));
             count += 1;
         }
     }
