@@ -2,11 +2,11 @@ use crate::Error;
 use rayon::prelude::*;
 #[derive(PartialEq, Clone, Eq, Debug)]
 enum Pointer {
-    DOWN,
-    RIGHT,
-    DIAGONAL,
-    STOP,
-    EMPTY,
+    Down,
+    Right,
+    Diagonal,
+    Stop,
+    Empty,
 }
 
 struct Alignment {
@@ -25,23 +25,23 @@ fn output_backtrack(
     let mut w_alignment = "".to_string();
     while i > 0 || j > 0 {
         match &backtrack[i][j] {
-            Pointer::DOWN => {
+            Pointer::Down => {
                 v_alignment.insert(0, v.chars().nth(i - 1).unwrap());
                 w_alignment.insert(0, '-');
                 i -= 1;
             }
-            Pointer::RIGHT => {
+            Pointer::Right => {
                 w_alignment.insert(0, w.chars().nth(j - 1).unwrap());
                 v_alignment.insert(0, '-');
                 j -= 1;
             }
-            Pointer::DIAGONAL => {
+            Pointer::Diagonal => {
                 v_alignment.insert(0, v.chars().nth(i - 1).unwrap());
                 w_alignment.insert(0, w.chars().nth(j - 1).unwrap());
                 i -= 1;
                 j -= 1;
             }
-            Pointer::STOP => {
+            Pointer::Stop => {
                 break;
             }
             _ => {
@@ -89,15 +89,15 @@ fn local_alignment_score_and_backtrack_matrix(
 ) -> Result<(Alignment, usize, usize), Error> {
     let v_len = v.chars().count();
     let w_len = w.chars().count();
-    let mut backtrack: Vec<Vec<Pointer>> = vec![vec![Pointer::EMPTY; w_len + 1]; v_len + 1];
+    let mut backtrack: Vec<Vec<Pointer>> = vec![vec![Pointer::Empty; w_len + 1]; v_len + 1];
     let mut s = vec![vec![0isize; w_len + 1]; v_len + 1];
     for i in 0..=v_len {
         s[i][0] = indel * i as isize;
-        backtrack[i][0] = Pointer::DOWN;
+        backtrack[i][0] = Pointer::Down;
     }
     for j in 0..=w_len {
         s[0][j] = indel * j as isize;
-        backtrack[0][j] = Pointer::RIGHT;
+        backtrack[0][j] = Pointer::Right;
     }
     for i in 1..=v_len {
         for j in 1..=w_len {
@@ -118,13 +118,13 @@ fn local_alignment_score_and_backtrack_matrix(
             s[i][j] = *temp.par_iter().max().unwrap();
 
             if s[i][j] == temp[0] {
-                backtrack[i][j] = Pointer::DOWN;
+                backtrack[i][j] = Pointer::Down;
             } else if s[i][j] == temp[1] {
-                backtrack[i][j] = Pointer::RIGHT;
+                backtrack[i][j] = Pointer::Right;
             } else if s[i][j] == temp[2] {
-                backtrack[i][j] = Pointer::DIAGONAL;
+                backtrack[i][j] = Pointer::Diagonal;
             } else if s[i][j] == 0 {
-                backtrack[i][j] = Pointer::STOP;
+                backtrack[i][j] = Pointer::Stop;
             }
         }
     }

@@ -1,7 +1,12 @@
-use crate::{align_motifs_multi_threaded, generate_consensus_string, load_data, run_gibbs_sampler, run_median_string, run_randomized_motif_search, unique_motifs, utils::{
-    create_output_file, generate_vector_space_delimited, output_results_to_file,
-    write_file_header,
-}, Error, align_motifs_distance};
+use crate::{
+    align_motifs_multi_threaded, generate_consensus_string, load_data, run_gibbs_sampler,
+    run_median_string, run_randomized_motif_search, unique_motifs,
+    utils::{
+        create_output_file, generate_vector_space_delimited, output_results_to_file,
+        write_file_header,
+    },
+    Error,
+};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::InfoLevel;
@@ -123,7 +128,6 @@ struct GlobalOpts {
     /// alignment
     #[arg(short = 'a', long = "align")]
     align: bool,
-
 
     /// save motifs to file
     #[arg(short = 'o', long = "output")]

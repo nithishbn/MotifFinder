@@ -4,13 +4,11 @@ mod gibbs_sampler;
 mod median_string;
 mod randomized_motif_search;
 mod utils;
-mod bwt;
 
 use alignment::local_alignment;
 use gibbs_sampler::iterate_gibbs_sampler;
-use median_string::median_string;
-use bio::alignment::Alignment;
 use indicatif::{MultiProgress, ParallelProgressIterator, ProgressBar, ProgressStyle};
+use median_string::median_string;
 use randomized_motif_search::iterate_randomized_motif_search;
 use rayon::prelude::*;
 use std::str;
@@ -193,7 +191,7 @@ pub fn align_motifs_multi_threaded(
         ProgressStyle::with_template(
             "[{elapsed_precise}] {spinner:.9.on_0} {bar:50.9.on_0} {pos:>2}/{len:2} {msg} ({eta})",
         )
-            .unwrap(),
+        .unwrap(),
     );
     pb.reset_eta();
 
@@ -256,8 +254,8 @@ pub fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, 
             Ok(v) => v,
             Err(_e) => return Err(Error::InvalidSequence),
         }
-            .to_string()
-            .to_uppercase();
+        .to_string()
+        .to_uppercase();
 
         sequences.push(s);
     }
@@ -316,7 +314,6 @@ pub fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, 
 pub fn unique_motifs(motifs: &[String]) -> HashSet<String> {
     motifs.into_par_iter().cloned().collect::<HashSet<String>>()
 }
-
 
 #[cfg(test)]
 mod test {
