@@ -1,4 +1,5 @@
-pub mod alignment;
+mod alignment;
+mod bwt;
 mod command;
 mod gibbs_sampler;
 mod median_string;
@@ -171,7 +172,8 @@ fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     Ok(consensus)
 }
 
-#[tracing::instrument]
+
+#[tracing::instrument(skip_all)]
 pub fn align_motifs_multi_threaded(
     sequences: &[String],
     motifs: &[String],

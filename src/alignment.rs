@@ -1,4 +1,6 @@
 use crate::Error;
+use bio::alignment::Alignment as BioAlignment;
+use bio::pattern_matching::myers::Myers;
 use rayon::prelude::*;
 #[derive(PartialEq, Clone, Eq, Debug)]
 enum Pointer {
@@ -132,4 +134,29 @@ fn local_alignment_score_and_backtrack_matrix(
     let score = s[row][col];
     let alignment = Alignment { score, backtrack };
     Ok((alignment, row, col))
+}
+
+pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
+    let mut count = 0;
+    for sequence in sequences {
+        let pattern = consensus_string.as_bytes();
+        let sequence = sequence.as_bytes();
+        let mut myers = Myers::<u64>::new(pattern);
+
+        let mut aln = BioAlignment::default();
+
+        let mut matches = myers.find_all(sequence, 1);
+        // println!("hi");
+        while matches.next_alignment(&mut aln) {
+            println!(
+                "Hit found in range: {}..{} (distance: {})",
+                aln.ystart, aln.yend, aln.score
+            );
+            println!("{}",sequence.len());
+            
+            println!("{}", aln.pretty(pattern.as_ref(), sequence[aln.ystart..aln.yend].as_ref()));
+            count += 1;
+        }
+    }
+    println!("count: {}", count);
 }
