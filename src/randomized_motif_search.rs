@@ -85,23 +85,15 @@ pub fn iterate_randomized_motif_search(
         .into_par_iter()
         .progress_with(pb.clone())
         .map(|_i| {
-            let mut motifs = randomized_motif_search(dna, k)?;
-            let mut best_score = scoring_function(&motifs);
-            // pb.set_message(format!("Score so far {best_score}"));
-            let check = randomized_motif_search(dna, k)?;
-            let check_score = scoring_function(&check);
-            // pb.inc(1);
-            if check_score < best_score {
-                motifs = check;
-                best_score = check_score;
-            }
-
+            let motifs = randomized_motif_search(dna, k)?;
+            let best_score = scoring_function(&motifs);
             Ok((best_score, motifs))
         })
         .collect::<Result<Vec<(usize, Vec<String>)>, Error>>()?;
-    result.par_sort_by(|a, b| b.0.cmp(&a.0));
-    dbg!(&result);
+    result.par_sort_by(|a, b| a.0.cmp(&b.0));
+    // dbg!(&result);
     let motifs = result[0].1.clone();
-    // pb.finish_with_message(format!("Done! Best score: {best_score}"));
+    let best_score = result[0].0;
+    pb.finish_with_message(format!("Done! Best score: {best_score}"));
     Ok(motifs)
 }
