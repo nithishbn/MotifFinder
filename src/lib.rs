@@ -172,7 +172,6 @@ fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     Ok(consensus)
 }
 
-
 #[tracing::instrument(skip_all)]
 pub fn align_motifs_multi_threaded(
     sequences: &[String],

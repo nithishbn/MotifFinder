@@ -1,5 +1,3 @@
-
-
 #[test]
 pub fn pssm() {
     use bio::pattern_matching::pssm::DNAMotif;

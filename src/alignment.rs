@@ -152,9 +152,12 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
                 "Hit found in range: {}..{} (distance: {})",
                 aln.ystart, aln.yend, aln.score
             );
-            println!("{}",sequence.len());
-            
-            println!("{}", aln.pretty(pattern.as_ref(), sequence[aln.ystart..aln.yend].as_ref()));
+            println!("{}", sequence.len());
+
+            println!(
+                "{}",
+                aln.pretty(pattern.as_ref(), sequence.as_ref())
+            );
             count += 1;
         }
     }
