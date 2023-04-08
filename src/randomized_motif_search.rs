@@ -77,7 +77,7 @@ pub fn iterate_randomized_motif_search(
         "[{elapsed_precise}] {spinner:.green} {bar:40.cyan/blue} {pos:>7}/{len:7} {msg} ({eta})",
     )
     .unwrap();
-    pb.set_style(sty.clone());
+    pb.set_style(sty);
     pb.reset_eta();
     pb.set_message("Initializing");
 
