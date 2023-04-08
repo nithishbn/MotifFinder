@@ -5,7 +5,10 @@ use tracing_subscriber::FmtSubscriber;
 
 fn main() -> Result<(), Error> {
     let motif_finder = MotifFinder::parse();
-    let log_level = motif_finder.verbose.log_level().ok_or(Error::GenericError)?;
+    let log_level = motif_finder
+        .verbose
+        .log_level()
+        .ok_or(Error::GenericError)?;
     let converted_level = match log_level {
         clap_verbosity_flag::Level::Error => Level::ERROR,
         clap_verbosity_flag::Level::Warn => Level::WARN,

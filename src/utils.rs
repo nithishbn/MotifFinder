@@ -105,7 +105,7 @@ pub fn output_results_to_file(
     Ok(dt_end)
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
     trace!("Writing motifs to file");
     for (i, motif) in motifs.iter().enumerate() {

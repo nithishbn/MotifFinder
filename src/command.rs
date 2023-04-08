@@ -1,12 +1,7 @@
-use crate::{
-    align_motifs_multi_threaded, generate_consensus_string, load_data, run_gibbs_sampler,
-    run_median_string, run_randomized_motif_search, unique_motifs,
-    utils::{
-        create_output_file, generate_vector_space_delimited, output_results_to_file,
-        write_file_header,
-    },
-    Error,
-};
+use crate::{align_motifs_multi_threaded, generate_consensus_string, load_data, run_gibbs_sampler, run_median_string, run_randomized_motif_search, unique_motifs, utils::{
+    create_output_file, generate_vector_space_delimited, output_results_to_file,
+    write_file_header,
+}, Error, align_motifs_distance};
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
 use clap_verbosity_flag::InfoLevel;
@@ -28,7 +23,7 @@ impl MotifFinder {
     pub fn exec(mut self) -> Result<(), Error> {
         let dt = Utc::now();
         let start_time: i64 = dt.timestamp_micros();
-        info!("Welcome to MotifFinder!");
+        println!("Welcome to MotifFinder!");
         let sequences = load_data(&self.global_opts.input_file, self.global_opts.num_entries)?;
         self.global_opts.num_entries = sequences.len();
         let GlobalOpts { k, .. } = self.global_opts;
@@ -66,15 +61,15 @@ impl MotifFinder {
         }?;
         let unique_motifs: Vec<String> = unique_motifs(&motifs).into_par_iter().collect();
         let unique_motifs_string = generate_vector_space_delimited(&unique_motifs);
-        info!("Unique motifs: {}", unique_motifs_string);
+        println!("Unique motifs: {}", unique_motifs_string);
         let consensus_string = generate_consensus_string(&motifs, k)?;
-        info!("Consensus string: {}", consensus_string);
+        println!("Consensus string: {}", consensus_string);
 
         let (best_motif_score, best_motif) = if self.global_opts.align {
-            let top_five = align_motifs_multi_threaded(sequences, unique_motifs)?;
-            info!("Top 5 motifs:");
+            let top_five = align_motifs_multi_threaded(&sequences, &unique_motifs)?;
+            println!("Top 5 motifs:");
             for (score, motif) in &top_five {
-                info!("{}: {}", score, motif);
+                println!("{}: {}", score, motif);
             }
             let (best_motif_score, best_motif) = top_five[0].clone();
             (Some(best_motif_score), Some(best_motif))
@@ -90,7 +85,7 @@ impl MotifFinder {
             };
             match output_results_to_file(&mut file, &motifs, &summary) {
                 Ok(dt_end) => {
-                    info!("Results saved to {}", file_path.ok_or(Error::IOError)?);
+                    println!("Results saved to {}", file_path.ok_or(Error::IOError)?);
                     dt_end
                 }
                 Err(_err) => {
@@ -129,11 +124,10 @@ struct GlobalOpts {
     #[arg(short = 'a', long = "align")]
     align: bool,
 
+
     /// save motifs to file
     #[arg(short = 'o', long = "output")]
     output_file: Option<Option<String>>,
-
-    
 }
 
 #[derive(Subcommand, Debug)]

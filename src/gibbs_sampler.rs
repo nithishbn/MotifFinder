@@ -5,7 +5,8 @@ use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use rayon::prelude::*;
 use tracing::{info, trace};
-pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>, Error> {
+#[tracing::instrument(skip(dna))]
+fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>, Error> {
     // similar to randomized motif search but at every step we randomly remove one motif from the motifs list
     // we add this back in the form of the profile randomly generated kmer for that profile
     // profile_randomly_generated also adds in a level of randomness based on the profile it generates
@@ -14,8 +15,6 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec
     for seq in dna {
         let dna_length = seq.chars().count();
         let start_index = thread_rng().gen_range(0..(dna_length - k + 1));
-        // dbg!(dna_length);
-        // dbg!(start_index+k);
         if k > dna_length {
             continue;
         }
@@ -42,11 +41,8 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec
 
     Ok(best_motifs)
 }
-pub fn profile_randomly_generated_kmer(
-    text: &str,
-    k: usize,
-    profile: &[Vec<f64>],
-) -> Option<String> {
+#[tracing::instrument(skip_all)]
+fn profile_randomly_generated_kmer(text: &str, k: usize, profile: &[Vec<f64>]) -> Option<String> {
     // take in a profile, and for each kmer in text, generate probabilities based on the profile
     // then only output the kmer based on its probability i.e. use a weighted probability
     let n = text.chars().count();
@@ -72,7 +68,7 @@ pub fn profile_randomly_generated_kmer(
     }
     None
 }
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 pub fn iterate_gibbs_sampler(
     dna: &[String],
     k: usize,

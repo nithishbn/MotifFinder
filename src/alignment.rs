@@ -1,7 +1,7 @@
 use crate::Error;
 use rayon::prelude::*;
 #[derive(PartialEq, Clone, Eq, Debug)]
-pub enum Pointer {
+enum Pointer {
     DOWN,
     RIGHT,
     DIAGONAL,
@@ -9,12 +9,12 @@ pub enum Pointer {
     EMPTY,
 }
 
-pub struct Alignment {
+struct Alignment {
     score: isize,
     backtrack: Vec<Vec<Pointer>>,
 }
 
-pub fn output_backtrack(
+fn output_backtrack(
     backtrack: &[Vec<Pointer>],
     v: &str,
     w: &str,
@@ -64,7 +64,7 @@ pub fn local_alignment(
     let (v_alignment, w_alignment) = output_backtrack(&backtrack, v, w, row, col)?;
     Ok((score, v_alignment, w_alignment))
 }
-pub fn max_of_matrix(matrix: &[Vec<isize>]) -> (usize, usize) {
+fn max_of_matrix(matrix: &[Vec<isize>]) -> (usize, usize) {
     let mut max_so_far = isize::MIN;
     let (mut row, mut col) = (0, 0);
     for i in 0..matrix.len() {
@@ -80,7 +80,7 @@ pub fn max_of_matrix(matrix: &[Vec<isize>]) -> (usize, usize) {
     (row, col)
 }
 
-pub fn local_alignment_score_and_backtrack_matrix(
+fn local_alignment_score_and_backtrack_matrix(
     v: &str,
     w: &str,
     match_: isize,
@@ -132,42 +132,4 @@ pub fn local_alignment_score_and_backtrack_matrix(
     let score = s[row][col];
     let alignment = Alignment { score, backtrack };
     Ok((alignment, row, col))
-}
-
-pub fn local_alignment_score_only(
-    v: &str,
-    w: &str,
-    match_: isize,
-    mismatch: isize,
-    indel: isize,
-) -> isize {
-    // dbg!("Started local alignment");
-    let v_len = v.chars().count();
-    let w_len = w.chars().count();
-
-    let mut s = vec![vec![0isize; w_len + 1]; v_len + 1];
-
-    for i in 1..=v_len {
-        for j in 1..=w_len {
-            let v_char = v.chars().nth(i - 1);
-            let w_char = w.chars().nth(j - 1);
-            if v_char == Some('N') && w_char == Some('N') {
-                // ignore Ns
-                s[i][j] = isize::MIN + (v_len as isize * -indel);
-
-                continue;
-            }
-            let matching: isize = if v_char == w_char { match_ } else { mismatch };
-            let temp = vec![
-                s[i - 1][j] + indel,
-                s[i][j - 1] + indel,
-                s[i - 1][j - 1] + matching,
-                0,
-            ];
-            s[i][j] = *temp.par_iter().max().unwrap();
-        }
-    }
-    let (row, col) = max_of_matrix(&s);
-
-    s[row][col]
 }

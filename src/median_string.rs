@@ -4,7 +4,7 @@ use crate::Error;
 use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use tracing::{trace, warn};
-#[tracing::instrument]
+#[tracing::instrument(skip_all)]
 fn hamming_distance(string1: &str, string2: &str) -> usize {
     trace!("Hamming distance between {} and {}", string1, string2);
     // scan linearly across both strings to find how many differences they have between each other
@@ -57,7 +57,7 @@ fn neighbors(pattern: String, d: usize) -> HashSet<String> {
     }
     neighborhood
 }
-#[tracing::instrument]
+#[tracing::instrument(skip(dna))]
 pub fn median_string(k: usize, dna: &[String]) -> Result<String, Error> {
     trace!("Finding median string of length {} in {:?}", k, dna);
     let mut distance = usize::MAX;
@@ -90,7 +90,7 @@ pub fn median_string(k: usize, dna: &[String]) -> Result<String, Error> {
     Ok(median)
 }
 
-#[tracing::instrument]
+#[tracing::instrument(skip(dna))]
 fn distance_between_pattern_and_strings(pattern: &str, dna: &[String]) -> Result<usize, Error> {
     let k = pattern.chars().count();
     let mut distance: usize = 0;

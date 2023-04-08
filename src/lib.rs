@@ -1,14 +1,15 @@
 pub mod alignment;
 mod command;
-pub mod gibbs_sampler;
-pub mod median_string;
-pub mod randomized_motif_search;
+mod gibbs_sampler;
+mod median_string;
+mod randomized_motif_search;
 mod utils;
+mod bwt;
 
 use alignment::local_alignment;
 use gibbs_sampler::iterate_gibbs_sampler;
 use median_string::median_string;
-
+use bio::alignment::Alignment;
 use indicatif::{MultiProgress, ParallelProgressIterator, ProgressBar, ProgressStyle};
 use randomized_motif_search::iterate_randomized_motif_search;
 use rayon::prelude::*;
@@ -17,11 +18,12 @@ use std::{
     collections::{HashMap, HashSet},
     fs::File,
 };
-use tracing::{error, info};
+use tracing::{error, info, trace};
 
 use bio::io::fasta;
 #[doc(hidden)]
 pub use command::MotifFinder;
+
 #[derive(Debug)]
 pub enum Error {
     GenericError,
@@ -36,16 +38,17 @@ pub enum Error {
     NoMotifsFound,
     InvalidSequence,
     InvalidPointerError,
-    InvalidNumberofMotifs,
+    InvalidNumberMotifs,
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip_all)]
 fn scoring_function(motif_matrix: &[String]) -> usize {
     // given a motif matrix, generate its score by finding the highest count of nucleotide in a given position
     // and subtract that count from the total length of the column
-
     let mut score = 0;
     let k = motif_matrix.get(0).unwrap().chars().count();
     let motifs_length = motif_matrix.len();
+    trace!(motifs_length);
     // println!("len {}",motifs_length);
     for i in 0..k {
         let mut count: HashMap<char, usize> = HashMap::new();
@@ -58,18 +61,20 @@ fn scoring_function(motif_matrix: &[String]) -> usize {
         }
 
         let max = count.iter().max_by_key(|f| f.1).unwrap().1;
-
+        trace!(max);
         score += motifs_length - max;
     }
     score
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip_all)]
 fn generate_profile_given_motif_matrix(
     motif_matrix: &[String],
     pseudo: bool,
 ) -> Result<Vec<Vec<f64>>, Error> {
     // generate probabilities per column using the count matrix divided by sum of each column
     let k = motif_matrix[0].len();
+    trace!(k);
     let count_matrix = generate_count_matrix(motif_matrix, k, pseudo);
     let mut profile_matrix: Vec<Vec<f64>> = vec![vec![0.0; k]; 4];
     let sum = motif_matrix.len() as f64;
@@ -91,7 +96,8 @@ fn generate_profile_given_motif_matrix(
     }
     Ok(profile_matrix)
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip_all)]
 fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) -> Vec<Vec<usize>> {
     // enumerate motif matrix per nucleotide per position
     let mut val = 0;
@@ -116,7 +122,8 @@ fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) -> Vec
     }
     count_matrix
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip_all)]
 fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
     // given a kmer and a profile, generate its probability
     let mut probability = 1.0;
@@ -136,7 +143,8 @@ fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
     }
     probability
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip_all)]
 fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     let mut consensus = String::new();
     let count_matrix = generate_count_matrix(motifs, k, true);
@@ -167,15 +175,15 @@ fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
 
 #[tracing::instrument]
 pub fn align_motifs_multi_threaded(
-    sequences: Vec<String>,
-    motifs: Vec<String>,
+    sequences: &[String],
+    motifs: &[String],
 ) -> Result<Vec<(isize, String)>, Error> {
     let motifs_len = motifs.len();
     let sequences_len = sequences.len();
     let pb = ProgressBar::new(
         motifs_len
             .try_into()
-            .map_err(|_| Error::InvalidNumberofMotifs)?,
+            .map_err(|_| Error::InvalidNumberMotifs)?,
     );
     let sty =
         ProgressStyle::with_template(&format!("{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}} ", "9.on_0"))
@@ -185,7 +193,7 @@ pub fn align_motifs_multi_threaded(
         ProgressStyle::with_template(
             "[{elapsed_precise}] {spinner:.9.on_0} {bar:50.9.on_0} {pos:>2}/{len:2} {msg} ({eta})",
         )
-        .unwrap(),
+            .unwrap(),
     );
     pb.reset_eta();
 
@@ -248,15 +256,16 @@ pub fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, 
             Ok(v) => v,
             Err(_e) => return Err(Error::InvalidSequence),
         }
-        .to_string()
-        .to_uppercase();
+            .to_string()
+            .to_uppercase();
 
         sequences.push(s);
     }
     info!("Done loading data: {} entries", sequences.len());
     Ok(sequences)
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip(sequences))]
 pub fn run_gibbs_sampler(
     sequences: &Vec<String>,
     k: usize,
@@ -272,14 +281,16 @@ pub fn run_gibbs_sampler(
 
     iterate_gibbs_sampler(sequences, k, sequences.len(), num_iterations, num_runs)
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip(sequences))]
 pub fn run_median_string(sequences: &[String], k: usize) -> Result<Vec<String>, Error> {
     let median_string = median_string(k, sequences)?;
     info!("Median string: {}", median_string);
     let vec = vec![median_string];
     Ok(vec)
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip(sequences))]
 pub fn run_randomized_motif_search(
     sequences: &[String],
     k: usize,
@@ -290,7 +301,8 @@ pub fn run_randomized_motif_search(
     }
     iterate_randomized_motif_search(sequences, k, num_runs)
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip(motifs))]
 pub fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     if motifs.is_empty() {
         return Err(Error::NoMotifsFound);
@@ -299,10 +311,12 @@ pub fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, 
     }
     consensus_string(motifs, k)
 }
-#[tracing::instrument]
+
+#[tracing::instrument(skip(motifs))]
 pub fn unique_motifs(motifs: &[String]) -> HashSet<String> {
     motifs.into_par_iter().cloned().collect::<HashSet<String>>()
 }
+
 
 #[cfg(test)]
 mod test {

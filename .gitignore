@@ -58,3 +58,5 @@ wapm_packages
 *.pbs
 
 dump/
+
+.idea/
