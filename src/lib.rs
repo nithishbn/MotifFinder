@@ -340,13 +340,13 @@ mod test {
     pub fn test_entries_less_than_five() {
         let sequences = super::load_data("promoters.fasta", 4).unwrap();
         let motifs = super::run_randomized_motif_search(&sequences, 8, 20).unwrap();
-        let top_five = align_motifs_multi_threaded(sequences, motifs).unwrap();
+        let top_five = align_motifs_multi_threaded(&sequences, &motifs).unwrap();
         assert!(top_five.len() <= 4);
         let sequences = super::load_data("promoters.fasta", 2).unwrap();
         assert_eq!(sequences.len(), 2);
         let motifs = super::run_randomized_motif_search(&sequences, 8, 20).unwrap();
         assert_eq!(motifs.len(), 2);
-        let top_five = align_motifs_multi_threaded(sequences, motifs).unwrap();
+        let top_five = align_motifs_multi_threaded(&sequences, &motifs).unwrap();
         assert!(top_five.len() <= 2);
     }
 }

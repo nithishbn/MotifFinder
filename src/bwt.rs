@@ -1,6 +1,9 @@
+
+
 #[test]
 pub fn pssm() {
     use bio::pattern_matching::pssm::DNAMotif;
+    use bio::pattern_matching::pssm::Motif;
     let pssm = DNAMotif::from_seqs(
         vec![
             b"AAAA".to_vec(),
