@@ -1,4 +1,5 @@
 use crate::Error;
+use bio::alignment::pairwise::Aligner;
 use bio::alignment::Alignment as BioAlignment;
 use bio::pattern_matching::myers::Myers;
 use rayon::prelude::*;
@@ -142,19 +143,31 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
         let pattern = consensus_string.as_bytes();
         let sequence = sequence.as_bytes();
         let mut myers = Myers::<u64>::new(pattern);
-
         let mut aln = BioAlignment::default();
+        let mut matches = myers.find_all(sequence, 2);
 
-        let mut matches = myers.find_all(sequence, 1);
-        // println!("hi");
         while matches.next_alignment(&mut aln) {
             println!(
                 "Hit found in range: {}..{} (distance: {})",
                 aln.ystart, aln.yend, aln.score
             );
-            println!("{}", sequence.len());
+            let y = if aln.ystart >= 2 {
+                if aln.yend >= 2 {
+                    &sequence[aln.ystart - 2..aln.yend + 2]
+                } else {
+                    &sequence[aln.ystart - 2..aln.yend]
+                }
+            } else if aln.yend >= 2 {
+                &sequence[aln.ystart..aln.yend + 2]
+            } else {
+                &sequence[aln.ystart..aln.yend]
+            };
+            let x = &pattern[aln.xstart..aln.xend];
+            let score = |a: u8, b: u8| if a == b { 1i32 } else { -1i32 };
+            let mut aligner = Aligner::with_capacity(x.len(), y.len(), -5, -1, &score);
+            let alignment = aligner.semiglobal(x, y);
+            println!("{}", alignment.pretty(x.as_ref(), y.as_ref()));
 
-            println!("{}", aln.pretty(pattern.as_ref(), sequence.as_ref()));
             count += 1;
         }
     }
