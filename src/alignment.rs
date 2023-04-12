@@ -147,7 +147,7 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
         let mut matches = myers.find_all(sequence, 2);
         let mut seq = false;
         while matches.next_alignment(&mut aln) {
-            if seq == false{
+            if !seq {
                 println!("Sequence: {}", i);
                 seq = true;
             }
