@@ -4,7 +4,9 @@ use indicatif::{ProgressBar, ProgressStyle};
 use rand::distributions::WeightedIndex;
 use rand::prelude::*;
 use rayon::prelude::*;
-pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>, Error> {
+use tracing::{info, trace};
+#[tracing::instrument(skip(dna))]
+fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec<String>, Error> {
     // similar to randomized motif search but at every step we randomly remove one motif from the motifs list
     // we add this back in the form of the profile randomly generated kmer for that profile
     // profile_randomly_generated also adds in a level of randomness based on the profile it generates
@@ -13,8 +15,6 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec
     for seq in dna {
         let dna_length = seq.chars().count();
         let start_index = thread_rng().gen_range(0..(dna_length - k + 1));
-        // dbg!(dna_length);
-        // dbg!(start_index+k);
         if k > dna_length {
             continue;
         }
@@ -23,9 +23,10 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec
     // println!("{} {}",best_motifs.len(),t);
     let mut best_score = scoring_function(&best_motifs);
     for _j in 0..n {
-        // println!("in loop {_j}");
+        trace!("Gibbs Sampler iteration: {}", _j);
         let mut motifs = best_motifs.clone();
         let i = thread_rng().gen_range(0..t);
+        trace!("Removing {}th motif", i);
         motifs.remove(i);
         let profile = generate_profile_given_motif_matrix(&best_motifs, true)?;
         if let Some(motif_i) = profile_randomly_generated_kmer(&dna[i], k, &profile) {
@@ -40,11 +41,8 @@ pub fn gibbs_sampler(dna: &[String], k: usize, t: usize, n: usize) -> Result<Vec
 
     Ok(best_motifs)
 }
-pub fn profile_randomly_generated_kmer(
-    text: &str,
-    k: usize,
-    profile: &[Vec<f64>],
-) -> Option<String> {
+#[tracing::instrument(skip_all)]
+fn profile_randomly_generated_kmer(text: &str, k: usize, profile: &[Vec<f64>]) -> Option<String> {
     // take in a profile, and for each kmer in text, generate probabilities based on the profile
     // then only output the kmer based on its probability i.e. use a weighted probability
     let n = text.chars().count();
@@ -70,6 +68,7 @@ pub fn profile_randomly_generated_kmer(
     }
     None
 }
+#[tracing::instrument(skip_all)]
 pub fn iterate_gibbs_sampler(
     dna: &[String],
     k: usize,
@@ -78,7 +77,7 @@ pub fn iterate_gibbs_sampler(
     runs: usize,
 ) -> Result<Vec<String>, Error> {
     // gibbs but iterate
-    println!("initializing gibbs sampler");
+    info!("Initializing Gibbs Sampler");
     let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
     let sty = ProgressStyle::with_template(
         "[{elapsed_precise}] {spinner:.9.on_0} {bar:50.9.on_0} {pos:>3}/{len:3} {msg} ({eta})",

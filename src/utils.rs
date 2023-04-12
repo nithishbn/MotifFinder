@@ -5,6 +5,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
+use tracing::trace;
 
 use crate::{
     command::{Commands, Summary},
@@ -20,6 +21,7 @@ pub fn generate_vector_space_delimited<T: Display>(vec: &[T]) -> String {
     string
 }
 
+#[tracing::instrument]
 pub fn write_file_header(
     file: &mut fs::File,
     k: usize,
@@ -55,6 +57,7 @@ pub fn write_file_header(
     Ok(())
 }
 
+#[tracing::instrument]
 pub fn create_output_file(
     save_flag: &Option<String>,
     k: usize,
@@ -80,11 +83,11 @@ pub fn output_results_to_file(
         best_motif,
         unique_motifs,
     } = summary;
+    trace!("Writing results to file");
     let dt_end = Utc::now();
     writeln!(file, "End time: {}", dt_end.format("%Y-%m-%d %H:%M:%S"))
         .map_err(|_| Error::IOError)?;
     writeln!(file, "Consensus string: {}", consensus_string).map_err(|_| Error::IOError)?;
-
     writeln!(file, "Unique motifs: {}", unique_motifs).map_err(|_| Error::IOError)?;
     if let Some(best_motif) = best_motif {
         writeln!(file, "Best motif: {}", best_motif).map_err(|_| Error::IOError)?;
@@ -101,7 +104,10 @@ pub fn output_results_to_file(
     write_motifs(file, motifs)?;
     Ok(dt_end)
 }
+
+#[tracing::instrument(skip_all)]
 fn write_motifs(file: &mut fs::File, motifs: &[String]) -> Result<(), Error> {
+    trace!("Writing motifs to file");
     for (i, motif) in motifs.iter().enumerate() {
         let motif = motif.trim();
         writeln!(file, ">motif {}", i + 1).map_err(|_| Error::IOError)?;

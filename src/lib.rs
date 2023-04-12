@@ -1,15 +1,15 @@
-pub mod alignment;
+mod alignment;
+mod bwt;
 mod command;
-pub mod gibbs_sampler;
-pub mod median_string;
-pub mod randomized_motif_search;
+mod gibbs_sampler;
+mod median_string;
+mod randomized_motif_search;
 mod utils;
 
-use alignment::local_alignment_score_only;
+use alignment::local_alignment;
 use gibbs_sampler::iterate_gibbs_sampler;
-use median_string::median_string;
-
 use indicatif::{MultiProgress, ParallelProgressIterator, ProgressBar, ProgressStyle};
+use median_string::median_string;
 use randomized_motif_search::iterate_randomized_motif_search;
 use rayon::prelude::*;
 use std::str;
@@ -17,15 +17,17 @@ use std::{
     collections::{HashMap, HashSet},
     fs::File,
 };
+use tracing::{error, info, trace};
 
 use bio::io::fasta;
 #[doc(hidden)]
 pub use command::MotifFinder;
+
 #[derive(Debug)]
 pub enum Error {
     GenericError,
     IOError,
-    FileNotFoundError,
+    FileNotFoundError(String),
     InvalidInputError,
     InvalidNucleotideError,
     InvalidKmerLength,
@@ -35,15 +37,17 @@ pub enum Error {
     NoMotifsFound,
     InvalidSequence,
     InvalidPointerError,
-    InvalidNumberofMotifs,
+    InvalidNumberMotifs,
 }
+
+#[tracing::instrument(skip_all)]
 fn scoring_function(motif_matrix: &[String]) -> usize {
     // given a motif matrix, generate its score by finding the highest count of nucleotide in a given position
     // and subtract that count from the total length of the column
-
     let mut score = 0;
     let k = motif_matrix.get(0).unwrap().chars().count();
     let motifs_length = motif_matrix.len();
+    trace!(motifs_length);
     // println!("len {}",motifs_length);
     for i in 0..k {
         let mut count: HashMap<char, usize> = HashMap::new();
@@ -56,17 +60,20 @@ fn scoring_function(motif_matrix: &[String]) -> usize {
         }
 
         let max = count.iter().max_by_key(|f| f.1).unwrap().1;
-
+        trace!(max);
         score += motifs_length - max;
     }
     score
 }
+
+#[tracing::instrument(skip_all)]
 fn generate_profile_given_motif_matrix(
     motif_matrix: &[String],
     pseudo: bool,
 ) -> Result<Vec<Vec<f64>>, Error> {
     // generate probabilities per column using the count matrix divided by sum of each column
     let k = motif_matrix[0].len();
+    trace!(k);
     let count_matrix = generate_count_matrix(motif_matrix, k, pseudo);
     let mut profile_matrix: Vec<Vec<f64>> = vec![vec![0.0; k]; 4];
     let sum = motif_matrix.len() as f64;
@@ -79,6 +86,7 @@ fn generate_profile_given_motif_matrix(
             if let Some(row) = profile_matrix.get_mut(j) {
                 row[i] = (*count_matrix.get(j).unwrap().get(i).unwrap()) as f64 / sum;
             } else {
+                error!("Invalid index for profile matrix");
                 return Err(Error::InvalidInputError);
             }
 
@@ -87,6 +95,8 @@ fn generate_profile_given_motif_matrix(
     }
     Ok(profile_matrix)
 }
+
+#[tracing::instrument(skip_all)]
 fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) -> Vec<Vec<usize>> {
     // enumerate motif matrix per nucleotide per position
     let mut val = 0;
@@ -111,6 +121,8 @@ fn generate_count_matrix(motif_matrix: &[String], k: usize, pseudo: bool) -> Vec
     }
     count_matrix
 }
+
+#[tracing::instrument(skip_all)]
 fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
     // given a kmer and a profile, generate its probability
     let mut probability = 1.0;
@@ -131,7 +143,8 @@ fn generate_probability(kmer: &str, profile: &[Vec<f64>]) -> f64 {
     probability
 }
 
-pub fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
+#[tracing::instrument(skip_all)]
+fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     let mut consensus = String::new();
     let count_matrix = generate_count_matrix(motifs, k, true);
     for i in 0..k {
@@ -159,16 +172,17 @@ pub fn consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     Ok(consensus)
 }
 
+#[tracing::instrument(skip_all)]
 pub fn align_motifs_multi_threaded(
-    sequences: Vec<String>,
-    motifs: Vec<String>,
+    sequences: &[String],
+    motifs: &[String],
 ) -> Result<Vec<(isize, String)>, Error> {
     let motifs_len = motifs.len();
     let sequences_len = sequences.len();
     let pb = ProgressBar::new(
         motifs_len
             .try_into()
-            .map_err(|_| Error::InvalidNumberofMotifs)?,
+            .map_err(|_| Error::InvalidNumberMotifs)?,
     );
     let sty =
         ProgressStyle::with_template(&format!("{{prefix:.bold}}▕{{bar:.{}}}▏{{msg}} ", "9.on_0"))
@@ -197,18 +211,24 @@ pub fn align_motifs_multi_threaded(
         .map(|motif| {
             let inner = m.add(ProgressBar::new(sequences_len.try_into().unwrap()));
             inner.set_style(sty.clone());
-
             inner.set_prefix(motif.to_string());
+            let mut total_score = 0;
             let mut highest_score = 0;
+            let mut best_motif = String::from("");
             for sequence in sequences.iter() {
-                highest_score += local_alignment_score_only(sequence, motif, 1, -10, -100);
+                let (score, _v_align, w_align) = local_alignment(sequence, motif, 1, -10, -100)?;
+                if score > highest_score {
+                    highest_score = score;
+                    best_motif = w_align;
+                }
+                total_score += score;
                 inner.inc(1);
             }
             inner.finish_and_clear();
-
-            (highest_score, motif.to_owned())
+            Ok((total_score, best_motif))
         })
-        .collect();
+        .collect::<Result<Vec<(isize, String)>, Error>>()?;
+
     total_pb.finish_with_message("Done!");
     top_five.par_sort_by(|a, b| b.0.cmp(&a.0));
     top_five.dedup();
@@ -216,12 +236,13 @@ pub fn align_motifs_multi_threaded(
     Ok(top_five.to_vec())
 }
 
+#[tracing::instrument]
 pub fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, Error> {
-    println!("Loading data from '{}'...", path_to_file);
+    info!("Loading data from '{}'...", path_to_file);
     let mut sequences = vec![];
     let file = match File::open(path_to_file) {
         Ok(file) => file,
-        Err(_) => return Err(Error::FileNotFoundError),
+        Err(_) => return Err(Error::FileNotFoundError(path_to_file.to_string())),
     };
     let mut records = fasta::Reader::new(file).records();
     let mut count = 0;
@@ -239,9 +260,11 @@ pub fn load_data(path_to_file: &str, num_entries: usize) -> Result<Vec<String>, 
 
         sequences.push(s);
     }
-    println!("Done loading data: {} entries", sequences.len());
+    info!("Done loading data: {} entries", sequences.len());
     Ok(sequences)
 }
+
+#[tracing::instrument(skip(sequences))]
 pub fn run_gibbs_sampler(
     sequences: &Vec<String>,
     k: usize,
@@ -258,13 +281,15 @@ pub fn run_gibbs_sampler(
     iterate_gibbs_sampler(sequences, k, sequences.len(), num_iterations, num_runs)
 }
 
+#[tracing::instrument(skip(sequences))]
 pub fn run_median_string(sequences: &[String], k: usize) -> Result<Vec<String>, Error> {
     let median_string = median_string(k, sequences)?;
-    println!("median string: {}", median_string);
+    info!("Median string: {}", median_string);
     let vec = vec![median_string];
     Ok(vec)
 }
 
+#[tracing::instrument(skip(sequences))]
 pub fn run_randomized_motif_search(
     sequences: &[String],
     k: usize,
@@ -276,6 +301,7 @@ pub fn run_randomized_motif_search(
     iterate_randomized_motif_search(sequences, k, num_runs)
 }
 
+#[tracing::instrument(skip(motifs))]
 pub fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, Error> {
     if motifs.is_empty() {
         return Err(Error::NoMotifsFound);
@@ -285,6 +311,7 @@ pub fn generate_consensus_string(motifs: &[String], k: usize) -> Result<String, 
     consensus_string(motifs, k)
 }
 
+#[tracing::instrument(skip(motifs))]
 pub fn unique_motifs(motifs: &[String]) -> HashSet<String> {
     motifs.into_par_iter().cloned().collect::<HashSet<String>>()
 }
@@ -313,13 +340,13 @@ mod test {
     pub fn test_entries_less_than_five() {
         let sequences = super::load_data("promoters.fasta", 4).unwrap();
         let motifs = super::run_randomized_motif_search(&sequences, 8, 20).unwrap();
-        let top_five = align_motifs_multi_threaded(sequences, motifs).unwrap();
+        let top_five = align_motifs_multi_threaded(&sequences, &motifs).unwrap();
         assert!(top_five.len() <= 4);
         let sequences = super::load_data("promoters.fasta", 2).unwrap();
         assert_eq!(sequences.len(), 2);
         let motifs = super::run_randomized_motif_search(&sequences, 8, 20).unwrap();
         assert_eq!(motifs.len(), 2);
-        let top_five = align_motifs_multi_threaded(sequences, motifs).unwrap();
+        let top_five = align_motifs_multi_threaded(&sequences, &motifs).unwrap();
         assert!(top_five.len() <= 2);
     }
 }

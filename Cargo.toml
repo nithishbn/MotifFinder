@@ -23,9 +23,12 @@ name = "motif_finder"
 bio = "1.1.0"
 chrono = {version="0.4.24",default-features = false, features = ["clock"]}
 clap = { version = "4.1.8", default-features = false,features = ["derive", "std", "help", "usage", "error-context", "suggestions","color"]}
+clap-verbosity-flag = "2.0.1"
 indicatif = { version = "0.17.3", features = ["rayon"] }
 rand = "0.8.5"
 rayon = "1.7.0"
+tracing = "0.1.37"
+tracing-subscriber = "0.3.16"
 
 [build-dependencies]
 clap_mangen = "0.2.10"

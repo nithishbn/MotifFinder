@@ -1,14 +1,12 @@
 use crate::Error;
 use crate::{generate_probability, generate_profile_given_motif_matrix, scoring_function};
-use indicatif::{ProgressBar, ProgressStyle};
+use indicatif::{ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rand::{thread_rng, Rng};
-/*
-I used "better scoring function" which is based on entropy, but I included the integer,
-sum-based scoring function as well for reference
-*/
-pub fn randomized_motif_search(dna: &[String], k: usize) -> Result<Vec<String>, Error> {
+use rayon::prelude::*;
+use tracing::trace;
+#[tracing::instrument(skip(dna))]
+fn randomized_motif_search(dna: &[String], k: usize) -> Result<Vec<String>, Error> {
     let mut best_motifs = vec![];
-
     for seq in dna {
         let dna_length = seq.chars().count();
         let start_index = thread_rng().gen_range(0..(dna_length - k + 1));
@@ -31,8 +29,8 @@ pub fn randomized_motif_search(dna: &[String], k: usize) -> Result<Vec<String>, 
         }
     }
 }
-
-pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) -> String {
+#[tracing::instrument(skip(profile))]
+fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) -> String {
     // given a profile, and a DNA string, check all kmers to see which one is the most probable
     let text_len = text.chars().count();
     let mut best_probability_so_far = -1.0;
@@ -54,19 +52,23 @@ pub fn profile_most_probable_kmer(text: &str, k: usize, profile: &[Vec<f64>]) ->
     best_kmer.to_owned()
 }
 
-pub fn generate_motifs_from_profile(profile: &[Vec<f64>], dna: &[String], k: usize) -> Vec<String> {
+#[tracing::instrument(skip(profile, dna))]
+fn generate_motifs_from_profile(profile: &[Vec<f64>], dna: &[String], k: usize) -> Vec<String> {
     let mut motifs: Vec<String> = vec![];
     for seq in dna {
         motifs.push(profile_most_probable_kmer(seq, k, profile));
     }
     motifs
 }
+#[tracing::instrument(skip(dna))]
 pub fn iterate_randomized_motif_search(
     dna: &[String],
     k: usize,
     runs: usize,
 ) -> Result<Vec<String>, Error> {
     let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
+    trace!("Started randomized motif search");
+
     pb.println(format!(
         "Starting randomized motif search with {} runs",
         runs
@@ -78,19 +80,20 @@ pub fn iterate_randomized_motif_search(
     pb.set_style(sty);
     pb.reset_eta();
     pb.set_message("Initializing");
-    let mut motifs = randomized_motif_search(dna, k)?;
-    let mut best_score = scoring_function(&motifs);
 
-    for _i in 1..=runs {
-        pb.set_message(format!("Score so far {best_score}"));
-        let check = randomized_motif_search(dna, k)?;
-        let check_score = scoring_function(&check);
-        pb.inc(1);
-        if check_score < best_score {
-            motifs = check;
-            best_score = check_score;
-        }
-    }
+    let mut result: Vec<(usize, Vec<String>)> = (1..=runs)
+        .into_par_iter()
+        .progress_with(pb.clone())
+        .map(|_i| {
+            let motifs = randomized_motif_search(dna, k)?;
+            let best_score = scoring_function(&motifs);
+            Ok((best_score, motifs))
+        })
+        .collect::<Result<Vec<(usize, Vec<String>)>, Error>>()?;
+    result.par_sort_by(|a, b| a.0.cmp(&b.0));
+    // dbg!(&result);
+    let motifs = result[0].1.clone();
+    let best_score = result[0].0;
     pb.finish_with_message(format!("Done! Best score: {best_score}"));
     Ok(motifs)
 }

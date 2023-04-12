@@ -1,6 +1,8 @@
 use crate::{
-    align_motifs_multi_threaded, generate_consensus_string, load_data, run_gibbs_sampler,
-    run_median_string, run_randomized_motif_search, unique_motifs,
+    align_motifs_multi_threaded,
+    alignment::align_motifs_distance,
+    generate_consensus_string, load_data, run_gibbs_sampler, run_median_string,
+    run_randomized_motif_search, unique_motifs,
     utils::{
         create_output_file, generate_vector_space_delimited, output_results_to_file,
         write_file_header,
@@ -9,22 +11,26 @@ use crate::{
 };
 use chrono::Utc;
 use clap::{Args, Parser, Subcommand};
+use clap_verbosity_flag::InfoLevel;
 use rayon::prelude::*;
+use tracing::{error, info, trace};
 /// Motif Finder
-#[derive(Parser)]
+#[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 pub struct MotifFinder {
     #[clap(flatten)]
     global_opts: GlobalOpts,
     #[command(subcommand)]
     pub command: Commands,
+    #[clap(flatten)]
+    pub verbose: clap_verbosity_flag::Verbosity<InfoLevel>,
 }
 
 impl MotifFinder {
     pub fn exec(mut self) -> Result<(), Error> {
         let dt = Utc::now();
         let start_time: i64 = dt.timestamp_micros();
-        println!("start at {}", dt.format("%Y-%m-%d %H:%M:%S"));
+        println!("Welcome to MotifFinder!");
         let sequences = load_data(&self.global_opts.input_file, self.global_opts.num_entries)?;
         self.global_opts.num_entries = sequences.len();
         let GlobalOpts { k, .. } = self.global_opts;
@@ -40,7 +46,9 @@ impl MotifFinder {
                 &self.command,
                 dt,
             ) {
-                Ok(()) => {}
+                Ok(()) => {
+                    trace!("Wrote file header to {}", file_path);
+                }
                 Err(_err) => return Err(Error::IOError),
             }
             (Some(file), Some(file_path))
@@ -65,7 +73,7 @@ impl MotifFinder {
         println!("Consensus string: {}", consensus_string);
 
         let (best_motif_score, best_motif) = if self.global_opts.align {
-            let top_five = align_motifs_multi_threaded(sequences, unique_motifs)?;
+            let top_five = align_motifs_multi_threaded(&sequences, &unique_motifs)?;
             println!("Top 5 motifs:");
             for (score, motif) in &top_five {
                 println!("{}: {}", score, motif);
@@ -75,6 +83,7 @@ impl MotifFinder {
         } else {
             (None, None)
         };
+        align_motifs_distance(&sequences, &consensus_string);
         let dt_end = if let Some(mut file) = file {
             let summary = Summary {
                 consensus_string,
@@ -88,6 +97,10 @@ impl MotifFinder {
                     dt_end
                 }
                 Err(_err) => {
+                    error!(
+                        "Error writing to file: {}",
+                        file_path.ok_or(Error::IOError)?
+                    );
                     return Err(Error::IOError);
                 }
             }
@@ -95,9 +108,8 @@ impl MotifFinder {
             Utc::now()
         };
 
-        println!("End at {}", dt_end.format("%Y-%m-%d %H:%M:%S"));
         if let Some(duration) = dt_end.signed_duration_since(dt).num_microseconds() {
-            println!("Done in {} seconds", duration as f64 / 1_000_000.0);
+            info!("Done in {} seconds", duration as f64 / 1_000_000.0);
         }
         Ok(())
     }
@@ -125,7 +137,7 @@ struct GlobalOpts {
     output_file: Option<Option<String>>,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Commands {
     #[clap(name = "gibbs", about = "Run the Gibbs Sampler algorithm")]
     GibbsSampler {
