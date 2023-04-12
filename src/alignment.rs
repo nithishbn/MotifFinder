@@ -139,13 +139,13 @@ fn local_alignment_score_and_backtrack_matrix(
 
 pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
     let mut count = 0;
-    for sequence in sequences {
+    for (i, sequence) in sequences.iter().enumerate() {
         let pattern = consensus_string.as_bytes();
         let sequence = sequence.as_bytes();
         let mut myers = Myers::<u64>::new(pattern);
         let mut aln = BioAlignment::default();
         let mut matches = myers.find_all(sequence, 2);
-
+        println!("Sequence {}", i + 1);
         while matches.next_alignment(&mut aln) {
             println!(
                 "Hit found in range: {}..{} (distance: {})",
