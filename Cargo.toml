@@ -1,6 +1,6 @@
 [package]
 name = "motif_finder"
-version = "0.6.1"
+version = "0.6.2"
 edition = "2021"
 authors = ["Nithish Narasimman <me@nithishbn.com>"]
 license = "GPL-3.0-only"

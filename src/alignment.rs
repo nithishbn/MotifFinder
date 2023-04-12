@@ -145,8 +145,12 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
         let mut myers = Myers::<u64>::new(pattern);
         let mut aln = BioAlignment::default();
         let mut matches = myers.find_all(sequence, 2);
-        println!("Sequence {}", i + 1);
+        let mut seq = false;
         while matches.next_alignment(&mut aln) {
+            if seq == false{
+                println!("Sequence: {}", i);
+                seq = true;
+            }
             println!(
                 "Hit found in range: {}..{} (distance: {})",
                 aln.ystart, aln.yend, aln.score
@@ -167,7 +171,6 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
             let mut aligner = Aligner::with_capacity(x.len(), y.len(), -5, -1, &score);
             let alignment = aligner.semiglobal(x, y);
             println!("{}", alignment.pretty(x.as_ref(), y.as_ref()));
-
             count += 1;
         }
     }
