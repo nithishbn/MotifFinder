@@ -79,11 +79,11 @@ impl MotifFinder {
                 println!("{}: {}", score, motif);
             }
             let (best_motif_score, best_motif) = top_five[0].clone();
+            align_motifs_distance(&sequences, &consensus_string);
             (Some(best_motif_score), Some(best_motif))
         } else {
             (None, None)
         };
-        align_motifs_distance(&sequences, &consensus_string);
         let dt_end = if let Some(mut file) = file {
             let summary = Summary {
                 consensus_string,
