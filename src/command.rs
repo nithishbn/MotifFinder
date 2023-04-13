@@ -73,13 +73,13 @@ impl MotifFinder {
         println!("Consensus string: {}", consensus_string);
 
         let (best_motif_score, best_motif) = if self.global_opts.align {
-            // let top_five = align_motifs_multi_threaded(&sequences, &unique_motifs)?;
-            // println!("Top 5 motifs:");
-            // for (score, motif) in &top_five {
-            //     println!("{}: {}", score, motif);
-            // }
-            // let (best_motif_score, best_motif) = top_five[0].clone();
-            let (best_motif_score, best_motif) = (0,"".to_owned());
+            let top_five = align_motifs_multi_threaded(&sequences, &unique_motifs)?;
+            println!("Top 5 motifs:");
+            for (score, motif) in &top_five {
+                println!("{}: {}", score, motif);
+            }
+            let (best_motif_score, best_motif) = top_five[0].clone();
+            // let (best_motif_score, best_motif) = (0, "".to_owned());
             align_motifs_distance(&sequences, &consensus_string);
             (Some(best_motif_score), Some(best_motif))
         } else {
