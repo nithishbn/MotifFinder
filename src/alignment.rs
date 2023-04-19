@@ -174,7 +174,7 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String, di
             let mut aligner = Aligner::with_capacity(x.len(), y.len(), -5, -1, &score);
             let alignment = aligner.semiglobal(x, y);
             println!("{}", alignment.pretty(x.as_ref(), y.as_ref()));
-            count+=1;
+            count += 1;
         }
     }
     println!("Number of matches: {}", count);
