@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use crate::{
     align_motifs_multi_threaded,
     alignment::align_motifs_distance,
@@ -34,9 +36,13 @@ impl MotifFinder {
         let sequences = load_data(&self.global_opts.input_file, self.global_opts.num_entries)?;
         self.global_opts.num_entries = sequences.len();
         let GlobalOpts { k, .. } = self.global_opts;
-        if k == 0 {
-            return Err(Error::InvalidMotifLength);
-        }
+        let k = if let Some(k) = k {
+            k
+        } else {
+            let k = sequences[0].len();
+            info!("No k value provided, using k = {}", k);
+            k
+        };
         let (file, file_path) = if let Some(save_flag) = &self.global_opts.output_file {
             let (mut file, file_path) = create_output_file(save_flag, k, start_time)?;
             match write_file_header(
@@ -55,7 +61,7 @@ impl MotifFinder {
         } else {
             (None, None)
         };
-
+        let command_clone = (self.command).clone();
         let motifs = match self.command {
             Commands::GibbsSampler {
                 num_iterations,
@@ -64,6 +70,10 @@ impl MotifFinder {
             Commands::MedianString => run_median_string(&sequences, k),
             Commands::Randomized { num_runs } => {
                 run_randomized_motif_search(&sequences, k, num_runs)
+            }
+            Commands::FindMotif { motif, distance } => {
+                align_motifs_distance(&sequences, &motif, distance);
+                Ok(vec![motif])
             }
         }?;
         let unique_motifs: Vec<String> = unique_motifs(&motifs).into_par_iter().collect();
@@ -79,8 +89,7 @@ impl MotifFinder {
                 println!("{}: {}", score, motif);
             }
             let (best_motif_score, best_motif) = top_five[0].clone();
-            // let (best_motif_score, best_motif) = (0, "".to_owned());
-            align_motifs_distance(&sequences, &consensus_string);
+            align_motifs_distance(&sequences, &consensus_string, 1);
             (Some(best_motif_score), Some(best_motif))
         } else {
             (None, None)
@@ -92,7 +101,7 @@ impl MotifFinder {
                 best_motif_score,
                 unique_motifs: unique_motifs_string,
             };
-            match output_results_to_file(&mut file, &motifs, &summary) {
+            match output_results_to_file(&mut file, &motifs, &summary, command_clone) {
                 Ok(dt_end) => {
                     println!("Results saved to {}", file_path.ok_or(Error::IOError)?);
                     dt_end
@@ -126,8 +135,8 @@ struct GlobalOpts {
     pub num_entries: usize,
 
     /// motif length
-    #[arg(short)]
-    pub k: usize,
+    #[arg(short,value_parser=k_in_range)]
+    pub k: Option<usize>,
 
     /// alignment
     #[arg(short = 'a', long = "align")]
@@ -137,8 +146,23 @@ struct GlobalOpts {
     #[arg(short = 'o', long = "output")]
     output_file: Option<Option<String>>,
 }
+const K_RANGE: RangeInclusive<usize> = 1..=64;
 
-#[derive(Subcommand, Debug)]
+fn k_in_range(s: &str) -> Result<Option<usize>, String> {
+    let k: usize = s
+        .parse()
+        .map_err(|_| format!("`{s}` isn't a valid k value"))?;
+    if K_RANGE.contains(&k) {
+        Ok(Some(k))
+    } else {
+        Err(format!(
+            "k not in range {}-{}",
+            K_RANGE.start(),
+            K_RANGE.end()
+        ))
+    }
+}
+#[derive(Subcommand, Debug, Clone)]
 pub enum Commands {
     #[clap(name = "gibbs", about = "Run the Gibbs Sampler algorithm")]
     GibbsSampler {
@@ -166,7 +190,10 @@ pub enum Commands {
         #[arg(short = 'r', long = "runs")]
         num_runs: usize,
     },
+    #[clap(name = "find_motif", about = "Find a motif in a genome")]
+    FindMotif { motif: String, distance: u8 },
 }
+
 pub struct Summary {
     pub consensus_string: String,
     pub unique_motifs: String,
