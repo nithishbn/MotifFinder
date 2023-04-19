@@ -60,3 +60,5 @@ wapm_packages
 dump/
 
 .idea/
+
+*.fna

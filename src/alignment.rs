@@ -151,17 +151,18 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
                 println!("Sequence: {}", i);
                 seq = true;
             }
+            let sequence_len = sequence.len();
             println!(
                 "Hit found in range: {}..{} (distance: {})",
                 aln.ystart, aln.yend, aln.score
             );
             let y = if aln.ystart >= 2 {
-                if aln.yend >= 2 {
+                if aln.yend + 2 < sequence_len {
                     &sequence[aln.ystart - 2..aln.yend + 2]
                 } else {
                     &sequence[aln.ystart - 2..aln.yend]
                 }
-            } else if aln.yend >= 2 {
+            } else if aln.yend + 2 < sequence_len {
                 &sequence[aln.ystart..aln.yend + 2]
             } else {
                 &sequence[aln.ystart..aln.yend]

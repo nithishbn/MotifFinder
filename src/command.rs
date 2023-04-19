@@ -79,6 +79,7 @@ impl MotifFinder {
                 println!("{}: {}", score, motif);
             }
             let (best_motif_score, best_motif) = top_five[0].clone();
+            // let (best_motif_score, best_motif) = (0, "".to_owned());
             align_motifs_distance(&sequences, &consensus_string);
             (Some(best_motif_score), Some(best_motif))
         } else {
