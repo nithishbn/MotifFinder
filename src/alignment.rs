@@ -138,6 +138,7 @@ fn local_alignment_score_and_backtrack_matrix(
 }
 
 pub fn align_motifs_distance(sequences: &[String], consensus_string: &String, distance: u8) {
+    let mut seq_count = 0;
     let mut count = 0;
     for (i, sequence) in sequences.iter().enumerate() {
         let pattern = consensus_string.as_bytes();
@@ -150,6 +151,7 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String, di
             if !seq {
                 println!("Sequence: {}", i);
                 seq = true;
+                seq_count += 1;
             }
             let sequence_len = sequence.len();
             println!(
@@ -172,8 +174,9 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String, di
             let mut aligner = Aligner::with_capacity(x.len(), y.len(), -5, -1, &score);
             let alignment = aligner.semiglobal(x, y);
             println!("{}", alignment.pretty(x.as_ref(), y.as_ref()));
-            count += 1;
+            count+=1;
         }
     }
-    println!("count: {}", count);
+    println!("Number of matches: {}", count);
+    println!("Number of sequences with matches: {}", seq_count);
 }
