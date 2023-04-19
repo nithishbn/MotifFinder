@@ -137,19 +137,21 @@ fn local_alignment_score_and_backtrack_matrix(
     Ok((alignment, row, col))
 }
 
-pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
+pub fn align_motifs_distance(sequences: &[String], consensus_string: &String, distance: u8) {
+    let mut seq_count = 0;
     let mut count = 0;
     for (i, sequence) in sequences.iter().enumerate() {
         let pattern = consensus_string.as_bytes();
         let sequence = sequence.as_bytes();
         let mut myers = Myers::<u64>::new(pattern);
         let mut aln = BioAlignment::default();
-        let mut matches = myers.find_all(sequence, 2);
+        let mut matches = myers.find_all(sequence, distance);
         let mut seq = false;
         while matches.next_alignment(&mut aln) {
             if !seq {
                 println!("Sequence: {}", i);
                 seq = true;
+                seq_count += 1;
             }
             let sequence_len = sequence.len();
             println!(
@@ -175,5 +177,6 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String) {
             count += 1;
         }
     }
-    println!("count: {}", count);
+    println!("Number of matches: {}", count);
+    println!("Number of sequences with matches: {}", seq_count);
 }

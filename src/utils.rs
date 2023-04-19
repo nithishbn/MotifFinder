@@ -24,7 +24,7 @@ pub fn generate_vector_space_delimited<T: Display>(vec: &[T]) -> String {
 #[tracing::instrument]
 pub fn write_file_header(
     file: &mut fs::File,
-    k: usize,
+    k: Option<usize>,
     num_entries: usize,
     command: &Commands,
     dt: DateTime<Utc>,
@@ -32,12 +32,15 @@ pub fn write_file_header(
     let version = env!("CARGO_PKG_VERSION");
     writeln!(file, "MotifFinder {}", version)?;
     let command_string = match command {
-        Commands::Randomized { .. } => "Randomized",
+        Commands::Randomized { .. } => "Randomized Motif Search",
         Commands::GibbsSampler { .. } => "Gibbs Sampler",
         Commands::MedianString => "Median String",
+        Commands::FindMotif { .. } => "Find Motif",
     };
     writeln!(file, "Command: {}", command_string)?;
-    writeln!(file, "k: {}", k)?;
+    if let Some(k) = k {
+        writeln!(file, "k: {}", k)?;
+    }
     writeln!(file, "number of entries: {}", num_entries)?;
     match command {
         Commands::Randomized { num_runs } => {
@@ -51,6 +54,10 @@ pub fn write_file_header(
             writeln!(file, "iterations: {}", num_iterations)?;
         }
         Commands::MedianString => {}
+        Commands::FindMotif { motif, distance } => {
+            writeln!(file, "motif: {}", motif)?;
+            writeln!(file, "distance: {}", distance)?;
+        }
     }
     writeln!(file, "Start time: {}", dt.format("%Y-%m-%d %H:%M:%S"))?;
 
@@ -63,7 +70,7 @@ pub fn create_output_file(
     k: usize,
     timestamp: i64,
 ) -> Result<(File, String), Error> {
-    let save_path: String = save_flag
+    let save_path = save_flag
         .clone()
         .unwrap_or_else(|| format!("MotifFinder-output-{timestamp}-{}.txt", k));
     let file = match fs::File::create(&save_path) {
@@ -76,6 +83,7 @@ pub fn output_results_to_file(
     file: &mut fs::File,
     motifs: &[String],
     summary: &Summary,
+    command: Commands,
 ) -> Result<DateTime<Utc>, Error> {
     let Summary {
         consensus_string,
@@ -87,13 +95,19 @@ pub fn output_results_to_file(
     let dt_end = Utc::now();
     writeln!(file, "End time: {}", dt_end.format("%Y-%m-%d %H:%M:%S"))
         .map_err(|_| Error::IOError)?;
-    writeln!(file, "Consensus string: {}", consensus_string).map_err(|_| Error::IOError)?;
-    writeln!(file, "Unique motifs: {}", unique_motifs).map_err(|_| Error::IOError)?;
-    if let Some(best_motif) = best_motif {
-        writeln!(file, "Best motif: {}", best_motif).map_err(|_| Error::IOError)?;
-    }
-    if let Some(best_motif_score) = best_motif_score {
-        writeln!(file, "Best motif score: {}", best_motif_score).map_err(|_| Error::IOError)?;
+    match command {
+        Commands::FindMotif { .. } => {}
+        _ => {
+            writeln!(file, "Consensus string: {}", consensus_string).map_err(|_| Error::IOError)?;
+            writeln!(file, "Unique motifs: {}", unique_motifs).map_err(|_| Error::IOError)?;
+            if let Some(best_motif) = best_motif {
+                writeln!(file, "Best motif: {}", best_motif).map_err(|_| Error::IOError)?;
+            }
+            if let Some(best_motif_score) = best_motif_score {
+                writeln!(file, "Best motif score: {}", best_motif_score)
+                    .map_err(|_| Error::IOError)?;
+            }
+        }
     }
 
     writeln!(
