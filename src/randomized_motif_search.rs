@@ -68,7 +68,6 @@ pub fn iterate_randomized_motif_search(
 ) -> Result<Vec<String>, Error> {
     let pb = ProgressBar::new(runs.try_into().map_err(|_| Error::InvalidNumberOfRuns)?);
     trace!("Started randomized motif search");
-
     pb.println(format!(
         "Starting randomized motif search with {} runs",
         runs
@@ -79,7 +78,6 @@ pub fn iterate_randomized_motif_search(
     .unwrap();
     pb.set_style(sty);
     pb.reset_eta();
-    pb.set_message("Initializing");
 
     let mut result: Vec<(usize, Vec<String>)> = (1..=runs)
         .into_par_iter()
