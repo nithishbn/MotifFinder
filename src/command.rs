@@ -186,8 +186,11 @@ pub enum Commands {
     },
     #[clap(name = "find_motif", about = "Find a motif in a genome")]
     FindMotif {
+        /// motif to find
         motif: String,
-        #[arg(short = 'd', long = "distance", default_value_t = 0)]
+
+        /// max distance of motif from sequence
+        #[arg(default_value_t = 0)]
         distance: u8,
     },
 }
