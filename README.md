@@ -38,28 +38,29 @@ This method involves finding an organism with RNASeq data, a reference genome, a
 ## Examples
 
 You can try to find the motifs present in `promoters.fasta`, a set of 4 promoters known in _P. tricornutum_, a relatively unknown diatom species.
-## _De novo_
 
-### Gibbs Sampler
+### _De novo_
+
+#### Gibbs Sampler
 
 Gibbs Sampler is an algorithm that iteratively searches for the best set of motifs in a set of sequences and throws out motifs at random until all iterations are finished.
 
 `motif_finder promoters.fasta -e 4 -k 10 -o promotifs.txt gibbs -t 100 -r 100`
 
-### Randomized Motif Search
+#### Randomized Motif Search
 
 Randomized Motif Search is an algorithm that iteratively searches for the best set of motifs in a set of sequences and throws out motifs at random until the score cannot be improved anymore.
 
 `motif_finder promoters.fasta -e 4 -k 10 -o promotifs.txt randomized -r 100`
 
-### Median String
+#### Median String
 
 Median String is an algorithm that checks the hamming distance from each kmer from each sequence and returns the minimized kmer from all strings. This algorithm is incredibly slow but can result in very accurate but short kmers.
 Be warned when using large k values.
 
 `motif_finder promoters.fasta -e 4 -k 8 -o promotifs.txt median`
 
-## Find Motifs
+### Find Motifs
 
 Find Motif takes in an existing motif, an edit distance i.e. the max distance between motif and the sequence, and finds the positions throughout the entire input file where this match occurs. It will print the matches to the console.
 
@@ -73,6 +74,6 @@ If you wish to align the motifs you've generated back to the sequences from whic
 
 This will generate alignments for the motifs after identifying the motifs.
 
-### Other flags
+## Other flags
 
 **verbosity** - set verbosity with the `--quiet` or `--verbose` flags. `--quiet` offers some performance improvements in large input files and `k` values.

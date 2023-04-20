@@ -36,13 +36,7 @@ impl MotifFinder {
         let sequences = load_data(&self.global_opts.input_file, self.global_opts.num_entries)?;
         self.global_opts.num_entries = sequences.len();
         let GlobalOpts { k, .. } = self.global_opts;
-        let k = if let Some(k) = k {
-            k
-        } else {
-            let k = sequences[0].len();
-            info!("No k value provided, using k = {}", k);
-            k
-        };
+
         let (file, file_path) = if let Some(save_flag) = &self.global_opts.output_file {
             let (mut file, file_path) = create_output_file(save_flag, k, start_time)?;
             match write_file_header(
@@ -135,8 +129,8 @@ struct GlobalOpts {
     pub num_entries: usize,
 
     /// motif length
-    #[arg(short,value_parser=k_in_range)]
-    pub k: Option<usize>,
+    #[arg(short,value_parser=k_in_range,default_value_t=8)]
+    pub k: usize,
 
     /// alignment
     #[arg(short = 'a', long = "align")]
@@ -148,12 +142,12 @@ struct GlobalOpts {
 }
 const K_RANGE: RangeInclusive<usize> = 1..=64;
 
-fn k_in_range(s: &str) -> Result<Option<usize>, String> {
+fn k_in_range(s: &str) -> Result<usize, String> {
     let k: usize = s
         .parse()
         .map_err(|_| format!("`{s}` isn't a valid k value"))?;
     if K_RANGE.contains(&k) {
-        Ok(Some(k))
+        Ok(k)
     } else {
         Err(format!(
             "k not in range {}-{}",
@@ -191,7 +185,11 @@ pub enum Commands {
         num_runs: usize,
     },
     #[clap(name = "find_motif", about = "Find a motif in a genome")]
-    FindMotif { motif: String, distance: u8 },
+    FindMotif {
+        motif: String,
+        #[arg(short = 'd', long = "distance", default_value_t = 0)]
+        distance: u8,
+    },
 }
 
 pub struct Summary {

@@ -24,7 +24,7 @@ pub fn generate_vector_space_delimited<T: Display>(vec: &[T]) -> String {
 #[tracing::instrument]
 pub fn write_file_header(
     file: &mut fs::File,
-    k: Option<usize>,
+    k: usize,
     num_entries: usize,
     command: &Commands,
     dt: DateTime<Utc>,
@@ -38,9 +38,7 @@ pub fn write_file_header(
         Commands::FindMotif { .. } => "Find Motif",
     };
     writeln!(file, "Command: {}", command_string)?;
-    if let Some(k) = k {
-        writeln!(file, "k: {}", k)?;
-    }
+    writeln!(file, "k: {}", k)?;
     writeln!(file, "number of entries: {}", num_entries)?;
     match command {
         Commands::Randomized { num_runs } => {
