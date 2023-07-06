@@ -63,7 +63,7 @@ fn profile_randomly_generated_kmer(text: &str, k: usize, profile: &[Vec<f64>]) -
     // https://docs.rs/rand/0.7.3/rand/distributions/weighted/struct.WeightedIndex.html
     // similar to random choices from python
     let mut rng = thread_rng();
-    if let Ok(dist) = WeightedIndex::new(&adjusted_weights) {
+    if let Ok(dist) = WeightedIndex::new(adjusted_weights) {
         return Some(kmers.get(dist.sample(&mut rng)).unwrap().to_string());
     }
     None

@@ -173,7 +173,7 @@ pub fn align_motifs_distance(sequences: &[String], consensus_string: &String, di
             let score = |a: u8, b: u8| if a == b { 1i32 } else { -1i32 };
             let mut aligner = Aligner::with_capacity(x.len(), y.len(), -5, -1, &score);
             let alignment = aligner.semiglobal(x, y);
-            println!("{}", alignment.pretty(x.as_ref(), y.as_ref(),100));
+            println!("{}", alignment.pretty(x.as_ref(), y.as_ref(), 100));
             count += 1;
         }
     }
