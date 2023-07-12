@@ -35,6 +35,9 @@ By using RNASeq data and aligning it back to a reference genome, we can identify
 
 This method involves finding an organism with RNASeq data, a reference genome, and a few bioinformatics tools including [samtools](https://www.htslib.org/), [bamtools](https://github.com/pezmaster31/bamtools/wiki), and [bedtools](https://bedtools.readthedocs.io/en/latest/content/installation.html).
 
+### Gene Start Sites
+The same approach could be derived from gene annotation files which allows you to identify the same upstream sites. By compiling the _x_ bp upstream sequence of gene start sites for known genomes, we can similarly generate a set of sequences in which to look for motifs.
+
 ## Examples
 
 You can try to find the motifs present in `promoters.fasta`, a set of 4 promoters known in _P. tricornutum_, a relatively unknown diatom species.
